@@ -1,0 +1,24 @@
+# Format:
+# Canonical Term | alias one, alias two
+# Lines starting with # are ignored.
+
+Impact | impacts, impact app, impact platform
+Impact API | impactapi, impact a p i
+Impact Admin | impact admin
+Impact Portal | impact portal
+HubSpot | hub spot, hubs pot, hubsbot, hubs but, hospital
+Auth0 | auth zero, auth o
+Mantine | manteen, mountain
+Tailwind | tail wind
+RTK Query | rtk, rtkquery
+Vite | veet, vitejs
+PostgreSQL | postgres, postgresql
+ClickUp | click up
+Microsoft Teams | teams
+Azure | azur
+App Insights | application insights, app insight
+Key Vault | keyvault
+Shopify | shop if i
+Lightspeed | light speed
+.NET | dot net, net
+API | a p i

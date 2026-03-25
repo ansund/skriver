@@ -1,0 +1,9 @@
+{
+  "name": "impact-meeting-transcriber",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "transcribe": "node src/cli.mjs transcribe",
+    "help": "node src/cli.mjs --help"
+  }
+}
