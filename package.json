@@ -1,0 +1,54 @@
+{
+  "name": "skriver",
+  "version": "0.1.0",
+  "description": "Local-first transcription CLI that produces agent-ready meeting artifacts.",
+  "type": "module",
+  "bin": {
+    "skriver": "./src/cli.mjs"
+  },
+  "files": [
+    "src",
+    "scripts",
+    "config",
+    "docs",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE",
+    "requirements-diarization.txt"
+  ],
+  "scripts": {
+    "skriver": "node src/cli.mjs transcribe",
+    "transcribe": "node src/cli.mjs transcribe",
+    "doctor": "node src/cli.mjs doctor",
+    "inspect": "node src/cli.mjs inspect",
+    "glossary": "node src/cli.mjs glossary",
+    "cli:help": "node src/cli.mjs --help",
+    "setup-diarization": "./scripts/setup-diarization.sh",
+    "test": "node --test"
+  },
+  "keywords": [
+    "transcription",
+    "cli",
+    "meetings",
+    "agents",
+    "whisper",
+    "diarization",
+    "ocr"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ansund/skriver.git"
+  },
+  "homepage": "https://github.com/ansund/skriver",
+  "bugs": {
+    "url": "https://github.com/ansund/skriver/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=18.12"
+  }
+}

@@ -1,0 +1,27 @@
+name: Install problem
+description: Report setup or dependency issues when trying to use skriver
+title: "[Install]: "
+labels:
+  - install
+body:
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: What exact install or setup command did you run?
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output
+      description: Paste the relevant terminal output
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node version, Python version, and tool versions if known
+    validations:
+      required: true

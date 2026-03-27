@@ -1,0 +1,11 @@
+transcripts/*
+!transcripts/.gitkeep
+.venv-diarization/
+src/__pycache__/
+tmp/*
+!tmp/.gitkeep
+dist/
+.DS_Store
+website/node_modules/
+website/dist/
+website/.astro/

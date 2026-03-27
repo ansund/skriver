@@ -1,0 +1,487 @@
+import { basename, extname, join, resolve } from "node:path";
+import { stat } from "node:fs/promises";
+import os from "node:os";
+
+import { DEFAULT_GLOSSARY, DEFAULT_OUTPUT_ROOT, TOOL_NAME } from "./constants.mjs";
+import { parseOptionalPositiveInteger } from "./utils.mjs";
+
+export function parseArgs(argv) {
+  if (argv.length === 0) {
+    return { help: true, command: null, options: {} };
+  }
+
+  if (argv[0] === "--help" || argv[0] === "-h" || argv[0] === "help") {
+    return { help: true, command: argv[1] || null, options: {} };
+  }
+
+  const command = argv[0];
+  const rest = argv.slice(1);
+
+  switch (command) {
+    case "transcribe":
+      return parseTranscribeArgs(command, rest);
+    case "doctor":
+      return parseDoctorArgs(command, rest);
+    case "inspect":
+      return parseInspectArgs(command, rest);
+    case "glossary":
+      return parseGlossaryArgs(command, rest);
+    default:
+      return { help: true, command, options: {} };
+  }
+}
+
+function parseTranscribeArgs(command, argv) {
+  const options = { notes: [], contexts: [], nextSteps: "json" };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--help" || arg === "-h") {
+      return { help: true, command, options };
+    }
+    if (arg === "--dry-run") {
+      options.dryRun = true;
+      continue;
+    }
+
+    const next = argv[i + 1];
+    if (!next) {
+      throw new Error(`Missing value for ${arg}`);
+    }
+
+    switch (arg) {
+      case "--input":
+        options.input = next;
+        i += 1;
+        break;
+      case "--title":
+        options.title = next;
+        i += 1;
+        break;
+      case "--language":
+        options.language = next;
+        i += 1;
+        break;
+      case "--notes-file":
+        options.notesFile = next;
+        i += 1;
+        break;
+      case "--note":
+        options.notes.push(next);
+        i += 1;
+        break;
+      case "--context":
+        options.contexts.push(next);
+        i += 1;
+        break;
+      case "--glossary":
+        options.glossary = next;
+        i += 1;
+        break;
+      case "--screenshot-interval":
+        options.screenshotInterval = next;
+        i += 1;
+        break;
+      case "--screenshots":
+        options.screenshots = next;
+        i += 1;
+        break;
+      case "--whisper-model":
+        options.whisperModel = next;
+        i += 1;
+        break;
+      case "--diarization":
+        options.diarization = next;
+        i += 1;
+        break;
+      case "--num-speakers":
+        options.numSpeakers = next;
+        i += 1;
+        break;
+      case "--min-speakers":
+        options.minSpeakers = next;
+        i += 1;
+        break;
+      case "--max-speakers":
+        options.maxSpeakers = next;
+        i += 1;
+        break;
+      case "--threads":
+        options.threads = next;
+        i += 1;
+        break;
+      case "--output-root":
+        options.outputRoot = next;
+        i += 1;
+        break;
+      case "--next-steps":
+        options.nextSteps = next;
+        i += 1;
+        break;
+      default:
+        throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+
+  return { help: false, command, options };
+}
+
+function parseDoctorArgs(command, argv) {
+  const options = { json: false };
+
+  for (const arg of argv) {
+    if (arg === "--help" || arg === "-h") {
+      return { help: true, command, options };
+    }
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  return { help: false, command, options };
+}
+
+function parseInspectArgs(command, argv) {
+  const options = { json: false };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--help" || arg === "-h") {
+      return { help: true, command, options };
+    }
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+    if (!options.runDir) {
+      options.runDir = arg;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  return { help: false, command, options };
+}
+
+function parseGlossaryArgs(command, argv) {
+  const options = { action: "list", json: false };
+  let startIndex = 0;
+
+  if (argv[0] && !argv[0].startsWith("-")) {
+    options.action = argv[0];
+    startIndex = 1;
+  }
+
+  for (let i = startIndex; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--help" || arg === "-h") {
+      return { help: true, command, options };
+    }
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+
+    const next = argv[i + 1];
+    if (!next) {
+      throw new Error(`Missing value for ${arg}`);
+    }
+
+    switch (arg) {
+      case "--glossary":
+        options.glossary = next;
+        i += 1;
+        break;
+      case "--text":
+        options.text = next;
+        i += 1;
+        break;
+      case "--file":
+        options.file = next;
+        i += 1;
+        break;
+      default:
+        throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+
+  return { help: false, command, options };
+}
+
+export function printHelp(command = null) {
+  const render = command === "transcribe"
+    ? renderTranscribeHelp()
+    : command === "doctor"
+      ? renderDoctorHelp()
+      : command === "inspect"
+        ? renderInspectHelp()
+        : command === "glossary"
+          ? renderGlossaryHelp()
+          : renderRootHelp();
+
+  process.stdout.write(render);
+}
+
+function renderRootHelp() {
+  return `${TOOL_NAME}
+
+Usage:
+  skriver <command> [options]
+
+Commands:
+  transcribe   Transcribe audio or video into agent-ready artifacts
+  doctor       Check local dependencies and optional diarization setup
+  inspect      Review a run directory and print the next workflow steps
+  glossary     List glossary entries or check text against glossary rules
+
+Run \`skriver help <command>\` for command-specific help.
+`;
+}
+
+function renderTranscribeHelp() {
+  return `${TOOL_NAME} transcribe
+
+Usage:
+  skriver transcribe --input /absolute/path/to/file
+
+Options:
+  --input PATH                Absolute or relative path to audio/video file
+  --title TEXT                Folder/title label for the run
+  --language auto|sv|en       Spoken language hint for Whisper
+  --notes-file PATH           Text file with user notes
+  --note TEXT                 Inline note, repeatable
+  --context PATH              Extra context file or directory, repeatable
+  --glossary PATH             Extra glossary file
+  --screenshots auto|on|off   Enable screenshot extraction for videos
+  --screenshot-interval N     Seconds between screenshots for videos
+  --whisper-model NAME        Whisper model name (default: turbo)
+  --diarization auto|on|off   Local speaker diarization (default: auto)
+  --num-speakers N            Exact speaker count hint for diarization
+  --min-speakers N            Lower diarization speaker-count bound
+  --max-speakers N            Upper diarization speaker-count bound
+  --threads N                 Whisper CPU thread count
+  --output-root PATH          Where run folders should be created
+  --next-steps json|text|none Include suggested post-processing steps (default: json)
+  --dry-run                   Create the folder structure without running media tools
+  --help                      Show this help
+`;
+}
+
+function renderDoctorHelp() {
+  return `${TOOL_NAME} doctor
+
+Usage:
+  skriver doctor [--json]
+
+Options:
+  --json   Print machine-readable JSON instead of text
+  --help   Show this help
+`;
+}
+
+function renderInspectHelp() {
+  return `${TOOL_NAME} inspect
+
+Usage:
+  skriver inspect /absolute/path/to/run-dir [--json]
+
+Options:
+  --json   Print machine-readable JSON instead of text
+  --help   Show this help
+`;
+}
+
+function renderGlossaryHelp() {
+  return `${TOOL_NAME} glossary
+
+Usage:
+  skriver glossary list [--glossary PATH] [--json]
+  skriver glossary check (--text TEXT | --file PATH) [--glossary PATH] [--json]
+
+Options:
+  --glossary PATH   Extra glossary file to layer on top of the default glossary
+  --text TEXT       Text to check with glossary corrections
+  --file PATH       File to check with glossary corrections
+  --json            Print machine-readable JSON instead of text
+  --help            Show this help
+`;
+}
+
+export async function buildConfig(options) {
+  return await buildTranscribeConfig(options);
+}
+
+export async function buildTranscribeConfig(options) {
+  if (!options.input) {
+    throw new Error("--input is required.");
+  }
+
+  const inputPath = resolve(options.input);
+  const inputStats = await stat(inputPath).catch(() => null);
+  if (!inputStats || !inputStats.isFile()) {
+    throw new Error(`Input file not found: ${inputPath}`);
+  }
+
+  const title = options.title?.trim() || basename(inputPath, extname(inputPath));
+  const language = (options.language || "auto").toLowerCase();
+  if (!["auto", "sv", "en"].includes(language)) {
+    throw new Error("--language must be auto, sv, or en.");
+  }
+
+  const screenshots = (options.screenshots || "auto").toLowerCase();
+  if (!["auto", "on", "off"].includes(screenshots)) {
+    throw new Error("--screenshots must be auto, on, or off.");
+  }
+
+  const diarization = (options.diarization || "auto").toLowerCase();
+  if (!["auto", "on", "off"].includes(diarization)) {
+    throw new Error("--diarization must be auto, on, or off.");
+  }
+
+  const nextSteps = (options.nextSteps || "json").toLowerCase();
+  if (!["json", "text", "none"].includes(nextSteps)) {
+    throw new Error("--next-steps must be json, text, or none.");
+  }
+
+  const screenshotInterval = Number.parseInt(options.screenshotInterval || "20", 10);
+  if (!Number.isFinite(screenshotInterval) || screenshotInterval <= 0) {
+    throw new Error("--screenshot-interval must be a positive integer.");
+  }
+
+  const numSpeakers = parseOptionalPositiveInteger(options.numSpeakers, "--num-speakers");
+  const minSpeakers = parseOptionalPositiveInteger(options.minSpeakers, "--min-speakers");
+  const maxSpeakers = parseOptionalPositiveInteger(options.maxSpeakers, "--max-speakers");
+  if (Number.isFinite(minSpeakers) && Number.isFinite(maxSpeakers) && minSpeakers > maxSpeakers) {
+    throw new Error("--min-speakers cannot be greater than --max-speakers.");
+  }
+  if (Number.isFinite(numSpeakers) && Number.isFinite(minSpeakers) && numSpeakers < minSpeakers) {
+    throw new Error("--num-speakers cannot be lower than --min-speakers.");
+  }
+  if (Number.isFinite(numSpeakers) && Number.isFinite(maxSpeakers) && numSpeakers > maxSpeakers) {
+    throw new Error("--num-speakers cannot be greater than --max-speakers.");
+  }
+
+  const threads = Number.parseInt(options.threads || `${Math.max(1, Math.min(8, os.cpus().length))}`, 10);
+  if (!Number.isFinite(threads) || threads <= 0) {
+    throw new Error("--threads must be a positive integer.");
+  }
+
+  const notesFile = options.notesFile ? resolve(options.notesFile) : null;
+  if (notesFile) {
+    const noteStats = await stat(notesFile).catch(() => null);
+    if (!noteStats || !noteStats.isFile()) {
+      throw new Error(`Notes file not found: ${notesFile}`);
+    }
+  }
+
+  const glossaryPaths = [DEFAULT_GLOSSARY];
+  if (options.glossary) {
+    const glossaryPath = resolve(options.glossary);
+    const glossaryStats = await stat(glossaryPath).catch(() => null);
+    if (!glossaryStats || !glossaryStats.isFile()) {
+      throw new Error(`Glossary file not found: ${glossaryPath}`);
+    }
+    glossaryPaths.push(glossaryPath);
+  }
+
+  const contextInputs = [];
+  for (const contextPath of options.contexts || []) {
+    const resolvedPath = resolve(contextPath);
+    const contextStats = await stat(resolvedPath).catch(() => null);
+    if (!contextStats) {
+      throw new Error(`Context path not found: ${resolvedPath}`);
+    }
+    contextInputs.push(resolvedPath);
+  }
+
+  return {
+    inputPath,
+    title,
+    language,
+    notes: options.notes || [],
+    notesFile,
+    glossaryPaths,
+    contextInputs,
+    screenshots,
+    screenshotInterval,
+    whisperModel: options.whisperModel || "turbo",
+    diarization,
+    numSpeakers,
+    minSpeakers,
+    maxSpeakers,
+    threads,
+    outputRoot: resolve(options.outputRoot || DEFAULT_OUTPUT_ROOT),
+    nextSteps,
+    dryRun: Boolean(options.dryRun)
+  };
+}
+
+export async function buildInspectConfig(options) {
+  if (!options.runDir) {
+    throw new Error("inspect requires a run directory.");
+  }
+
+  const runDirectory = resolve(options.runDir);
+  const runStats = await stat(runDirectory).catch(() => null);
+  if (!runStats || !runStats.isDirectory()) {
+    throw new Error(`Run directory not found: ${runDirectory}`);
+  }
+
+  const manifestPath = join(runDirectory, "manifest.json");
+  const manifestStats = await stat(manifestPath).catch(() => null);
+  if (!manifestStats || !manifestStats.isFile()) {
+    throw new Error(`manifest.json not found in ${runDirectory}`);
+  }
+
+  return {
+    runDirectory,
+    json: Boolean(options.json)
+  };
+}
+
+export async function buildGlossaryConfig(options) {
+  const glossaryPaths = [DEFAULT_GLOSSARY];
+  if (options.glossary) {
+    const glossaryPath = resolve(options.glossary);
+    const glossaryStats = await stat(glossaryPath).catch(() => null);
+    if (!glossaryStats || !glossaryStats.isFile()) {
+      throw new Error(`Glossary file not found: ${glossaryPath}`);
+    }
+    glossaryPaths.push(glossaryPath);
+  }
+
+  const action = (options.action || "list").toLowerCase();
+  if (!["list", "check"].includes(action)) {
+    throw new Error("glossary action must be `list` or `check`.");
+  }
+
+  const config = {
+    action,
+    json: Boolean(options.json),
+    glossaryPaths
+  };
+
+  if (action === "check") {
+    if (!options.text && !options.file) {
+      throw new Error("glossary check requires --text or --file.");
+    }
+    if (options.text && options.file) {
+      throw new Error("Use either --text or --file, not both.");
+    }
+    if (options.file) {
+      const filePath = resolve(options.file);
+      const fileStats = await stat(filePath).catch(() => null);
+      if (!fileStats || !fileStats.isFile()) {
+        throw new Error(`Glossary check file not found: ${filePath}`);
+      }
+      config.file = filePath;
+    }
+    if (options.text) {
+      config.text = options.text;
+    }
+  }
+
+  return config;
+}

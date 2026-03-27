@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>Skriver</title>
+  <rect width="128" height="128" rx="28" fill="#08131f"/>
+  <path d="M24 38h80v12H24zm0 20h80v12H24zm0 20h50v12H24z" fill="#56f1c6"/>
+  <path d="M88 74l16 16-16 16" fill="none" stroke="#ff6d5f" stroke-linecap="round" stroke-linejoin="round" stroke-width="10"/>
+</svg>

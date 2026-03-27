@@ -1,0 +1,53 @@
+# Skriver
+
+Skriver is a local-first transcription CLI for agents and humans.
+
+## Core idea
+
+Skriver turns meeting audio or video into an evidence bundle:
+
+- transcript.md
+- manifest.json
+- workflow.md
+- summary_draft.json
+- low_confidence_segments.json
+- speaker_diarization.json
+- context_artifacts.json
+- screen_ocr.tsv for video
+
+## What it does
+
+- transcribes audio
+- transcribes video
+- extracts OCR from screenshots
+- merges extra context files
+- applies glossary corrections
+- flags uncertain transcript segments
+- optionally runs local diarization
+
+## What it does not do
+
+- no built-in hosted assistant
+- no hidden LLM summarizer
+- no replacing agent reasoning
+
+## Recommended agent workflow
+
+1. Run `skriver transcribe ...`
+2. Read `manifest.json`
+3. Read `transcript.md`
+4. Review `summary_draft.json`
+5. Review `low_confidence_segments.json`
+6. Review `context_artifacts.json`
+7. Review `speaker_diarization.json` if present
+8. Review `screen_ocr.tsv` and `screens/` for video
+
+## Install
+
+macOS/Linux:
+
+`curl -fsSL https://skriver.ansund.com/install.sh | bash`
+
+Windows PowerShell:
+
+`irm https://skriver.ansund.com/install.ps1 | iex`

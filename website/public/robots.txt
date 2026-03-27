@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://skriver.ansund.com/sitemap.xml

@@ -1,0 +1,318 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const repoUrl = "https://github.com/ansund/skriver";
+const siteUrl = "https://skriver.ansund.com";
+const installUrl = `${siteUrl}/install.sh`;
+const installPsUrl = `${siteUrl}/install.ps1`;
+const quickstarts = [
+  {
+    id: "one-liner",
+    label: "One-liner",
+    description: "Fastest path on macOS and Linux.",
+    command: `curl -fsSL ${installUrl} | bash`
+  },
+  {
+    id: "npm",
+    label: "npm",
+    description: "Direct global install from GitHub.",
+    command: "npm install -g github:ansund/skriver"
+  },
+  {
+    id: "pnpm",
+    label: "pnpm",
+    description: "If you already live in pnpm land.",
+    command: "pnpm add -g github:ansund/skriver"
+  },
+  {
+    id: "windows",
+    label: "Windows",
+    description: "PowerShell install script.",
+    command: `irm ${installPsUrl} | iex`
+  }
+];
+
+const artifactRows = [
+  ["transcript.md", "Readable transcript with timestamps, notes, corrections, and speaker labels when diarization succeeds."],
+  ["manifest.json", "Machine-readable index that tells agents where every useful artifact lives."],
+  ["workflow.md", "Short post-run checklist for agents and humans."],
+  ["summary_draft.json", "Deterministic summary candidates, actions, and open questions."],
+  ["low_confidence_segments.json", "Segments worth reviewing before publishing a final summary."],
+  ["speaker_diarization.json", "Anonymous diarization segments when local speaker detection completes."],
+  ["context_artifacts.json", "Extracted notes from slides, PDFs, docs, emails, and image inputs."],
+  ["screen_ocr.tsv", "OCR text from video screenshots so agents can repair context-heavy transcripts."]
+];
+
+const faq = [
+  {
+    question: "Does Skriver do the summary itself?",
+    answer: "Not in the hand-wavey LLM product sense. Skriver does deterministic extraction and drafting so your agent can reason from evidence instead of guesswork."
+  },
+  {
+    question: "Why Astro for the website?",
+    answer: "Because the page stays static, semantic, and crawlable. Agents and search crawlers get the actual content directly from HTML instead of chasing client-side rendering."
+  },
+  {
+    question: "What happens after install?",
+    answer: "Run `skriver doctor`, then `skriver transcribe ...`. Every run produces a clean bundle with `manifest.json`, `workflow.md`, and the transcript artifacts your agent needs."
+  }
+];
+---
+
+<BaseLayout
+  title="Skriver | A Local-First Transcription CLI for Agents"
+  pageTitle="Skriver"
+  description="Skriver is a local-first transcription CLI for agents and humans. Transcribe audio and video, capture OCR context, run local diarization, and produce clean artifacts for downstream reasoning."
+>
+  <main id="content" class="page-shell">
+    <div class="ambient ambient-left"></div>
+    <div class="ambient ambient-right"></div>
+
+    <header class="site-header">
+      <a class="brand" href="/">Skriver</a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#quickstart">Quick Start</a>
+        <a href="#artifacts">Artifacts</a>
+        <a href="#agents">For Agents</a>
+        <a href={repoUrl} target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">local-first • agent-first • gloriously inspectable</p>
+        <h1>Skriver turns meetings into evidence your agent can actually use.</h1>
+        <p class="lede">
+          Audio in. Video in. Notes in. Out comes a tidy run directory with a readable transcript,
+          OCR context, diarization artifacts, confidence flags, and a manifest that tells your
+          agent where to look next.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#quickstart">Install in one line</a>
+          <a class="button button-secondary" href={repoUrl} target="_blank" rel="noreferrer">View GitHub</a>
+        </div>
+        <ul class="signal-list" aria-label="Core promises">
+          <li>Static HTML that agents and crawlers can parse without drama.</li>
+          <li>No built-in fake reasoning layer. The artifacts do the talking.</li>
+          <li>Readable for humans, structured for agents.</li>
+        </ul>
+      </div>
+
+      <aside class="hero-card" aria-label="Terminal preview">
+        <div class="terminal-chrome">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span class="terminal-label">agent-ready output</span>
+        </div>
+        <pre class="terminal-body"><code># fresh run directory
+transcripts/2026-03-26T10-11-12_board-sync/
+
+manifest.json
+workflow.md
+transcript.md
+summary_draft.json
+low_confidence_segments.json
+speaker_diarization.json
+context_artifacts.json
+screen_ocr.tsv</code></pre>
+      </aside>
+    </section>
+
+    <section id="quickstart" class="section">
+      <div class="section-heading">
+        <span class="section-mark">&gt;</span>
+        <div>
+          <p class="section-kicker">Quick Start</p>
+          <h2>One-liner first. Confusion later. Preferably never.</h2>
+        </div>
+      </div>
+
+      <div class="quickstart-panel" data-quickstart-root>
+        <div class="quickstart-toolbar">
+          <div class="tab-row" role="tablist" aria-label="Install method">
+            {quickstarts.map((item, index) => (
+              <button
+                class:list={["tab-button", index === 0 && "is-active"]}
+                type="button"
+                role="tab"
+                aria-selected={index === 0 ? "true" : "false"}
+                aria-controls={`panel-${item.id}`}
+                id={`tab-${item.id}`}
+                data-tab-target={item.id}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <p class="toolbar-badge">agent-tested beta</p>
+        </div>
+
+        <div class="quickstart-panels">
+          {quickstarts.map((item, index) => (
+            <section
+              id={`panel-${item.id}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${item.id}`}
+              class:list={["command-panel", index === 0 && "is-active"]}
+              data-tab-panel={item.id}
+            >
+              <p class="panel-note">{item.description}</p>
+              <div class="command-line">
+                <code>{item.command}</code>
+                <button
+                  class="copy-button"
+                  type="button"
+                  data-copy={item.command}
+                  aria-label={`Copy ${item.label} install command`}
+                >
+                  Copy
+                </button>
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <p class="quickstart-footnote">
+          Honest version: the one-liner gets the CLI onto your machine. Then <code>skriver doctor</code>
+          tells you which local media tools are still missing for full transcription.
+        </p>
+      </div>
+    </section>
+
+    <section id="agents" class="section split-grid">
+      <div>
+        <div class="section-heading compact">
+          <span class="section-mark">*</span>
+          <div>
+            <p class="section-kicker">For Agents</p>
+            <h2>Built for the second step, not just the first command.</h2>
+          </div>
+        </div>
+        <p>
+          Skriver doesn’t pretend the transcript is the end of the workflow. It produces the
+          follow-up bundle your agent needs: a transcript that stands on its own, a manifest that
+          points to everything else, and a workflow guide that explains the review path.
+        </p>
+      </div>
+
+      <div class="feature-stack">
+        <article class="feature-card">
+          <h3><code>manifest.json</code></h3>
+          <p>One machine-readable index for agents. No guessing. No scraping filenames. No “where did the OCR go?” energy.</p>
+        </article>
+        <article class="feature-card">
+          <h3><code>workflow.md</code></h3>
+          <p>A short checklist for humans and agents so the post-processing workflow stays explicit and repeatable.</p>
+        </article>
+        <article class="feature-card">
+          <h3><code>llms.txt</code></h3>
+          <p>The site ships with agent-readable product notes too, because crawlers deserve a clean path and not a JavaScript labyrinth.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="artifacts" class="section">
+      <div class="section-heading">
+        <span class="section-mark">//</span>
+        <div>
+          <p class="section-kicker">Artifacts</p>
+          <h2>The transcript is readable. The folder is inspectable. The rest is workflow.</h2>
+        </div>
+      </div>
+
+      <div class="artifact-table" role="table" aria-label="Artifact overview">
+        {artifactRows.map(([name, description]) => (
+          <div class="artifact-row" role="row">
+            <div class="artifact-name" role="cell"><code>{name}</code></div>
+            <div class="artifact-description" role="cell">{description}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="section narrative-grid">
+      <article class="narrative-card">
+        <p class="section-kicker">SEO Friendly</p>
+        <h2>Plain HTML, semantic sections, zero mystery meat.</h2>
+        <p>
+          Astro keeps the page fast and crawlable. Search bots, AI agents, and actual people all
+          get the same readable content without waiting for a client app to boot.
+        </p>
+      </article>
+
+      <article class="narrative-card">
+        <p class="section-kicker">Quirky, not precious</p>
+        <h2>A terminal toybox with manners.</h2>
+        <p>
+          The design leans playful, but the copy stays direct: what it installs, what it outputs,
+          and how an agent should use it next.
+        </p>
+      </article>
+    </section>
+
+    <section class="section faq-section">
+      <div class="section-heading">
+        <span class="section-mark">?</span>
+        <div>
+          <p class="section-kicker">FAQ</p>
+          <h2>Small answers for the questions people and crawlers both tend to ask.</h2>
+        </div>
+      </div>
+
+      <div class="faq-list">
+        {faq.map((item) => (
+          <details class="faq-item">
+            <summary>{item.question}</summary>
+            <p>{item.answer}</p>
+          </details>
+        ))}
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <p>Skriver is an open-source transcription CLI for agents and humans.</p>
+      <div class="footer-links">
+        <a href={repoUrl} target="_blank" rel="noreferrer">GitHub</a>
+        <a href="https://github.com/ansund/skriver/blob/main/README.md" target="_blank" rel="noreferrer">Docs</a>
+        <a href="/llms.txt">llms.txt</a>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    const root = document.querySelector("[data-quickstart-root]");
+    if (root) {
+      const tabs = [...root.querySelectorAll("[data-tab-target]")];
+      const panels = [...root.querySelectorAll("[data-tab-panel]")];
+
+      const activate = (targetId) => {
+        tabs.forEach((tab) => {
+          const active = tab.dataset.tabTarget === targetId;
+          tab.classList.toggle("is-active", active);
+          tab.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        panels.forEach((panel) => {
+          panel.classList.toggle("is-active", panel.dataset.tabPanel === targetId);
+        });
+      };
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => activate(tab.dataset.tabTarget));
+      });
+
+      root.querySelectorAll("[data-copy]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const text = button.dataset.copy;
+          if (!text) return;
+          await navigator.clipboard.writeText(text);
+          const original = button.textContent;
+          button.textContent = "Copied";
+          window.setTimeout(() => {
+            button.textContent = original;
+          }, 1500);
+        });
+      });
+    }
+  </script>
+</BaseLayout>

@@ -2,10 +2,10 @@
 # Canonical Term | alias one, alias two
 # Lines starting with # are ignored.
 
-Impact | impacts, impact app, impact platform
-Impact API | impactapi, impact a p i
-Impact Admin | impact admin
-Impact Portal | impact portal
+Skriver | skriver app, skriver platform
+Skriver API | skriverapi, skriver a p i
+Skriver Admin | skriver admin
+Skriver Portal | skriver portal
 HubSpot | hub spot, hubs pot, hubsbot, hubs but, hospital
 Auth0 | auth zero, auth o
 Mantine | manteen, mountain
