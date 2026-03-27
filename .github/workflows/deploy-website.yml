@@ -1,0 +1,27 @@
+name: Deploy Website
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-website
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deployment
+        env:
+          COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+          COOLIFY_WEBSITE_UUID: ${{ vars.COOLIFY_SKRIVER_WEBSITE_UUID }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            "${COOLIFY_BASE_URL}/deploy?uuid=${COOLIFY_WEBSITE_UUID}")"
+          echo "${response}"
