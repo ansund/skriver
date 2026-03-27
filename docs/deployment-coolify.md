@@ -11,11 +11,11 @@ Skriver's website is designed to be deployed as a static Astro build behind ngin
 
 ## Coolify app setup
 
-Create a new Coolify app for this repository using the GitHub App based flow you already use for other Ansund projects.
+The production website is deployed as the `skriver-website` application in the Coolify `skriver` project.
 
 ### Build configuration
 
-- **Repository integration**: GitHub App
+- **Repository integration**: Public Git repository (`https://github.com/ansund/skriver.git`)
 - **Branch**: `main`
 - **Build pack**: Dockerfile
 - **Base Directory**: `/website`
@@ -25,7 +25,19 @@ Create a new Coolify app for this repository using the GitHub App based flow you
 
 No runtime environment variables are required for the current static website.
 
-Using the GitHub App flow is the easiest way to get push-to-deploy behavior on every push to `main`.
+### Auto deploy
+
+Push-to-deploy is driven from GitHub Actions, not the Coolify GitHub App flow.
+
+- Workflow: [.github/workflows/deploy-website.yml](/Users/viktoransund/code/impact/.github/workflows/deploy-website.yml)
+- Trigger: every push to `main`
+- Mechanism: call `GET /api/v1/deploy?uuid=<website-app-uuid>` on the Coolify API
+
+GitHub repository configuration:
+
+- Secret: `COOLIFY_TOKEN`
+- Variable: `COOLIFY_BASE_URL`
+- Variable: `COOLIFY_SKRIVER_WEBSITE_UUID`
 
 ## DNS
 
