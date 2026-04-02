@@ -2,7 +2,7 @@ import process from "node:process";
 
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 
-export function createProgressReporter({ enabled = true, stream = process.stderr } = {}) {
+export function createProgressReporter({ enabled = true, verbose = false, stream = process.stderr } = {}) {
   if (!enabled) {
     return createNoopReporter();
   }
@@ -20,7 +20,7 @@ export function createProgressReporter({ enabled = true, stream = process.stderr
     const estimateText = estimate ? ` Estimated time: ${estimate}.` : "";
     stream.write(`\n${name}${detail ? `: ${detail}` : ""}.${estimateText}\n`);
 
-    if (!stream.isTTY) {
+    if (!stream.isTTY || verbose) {
       return;
     }
 
@@ -39,14 +39,16 @@ export function createProgressReporter({ enabled = true, stream = process.stderr
 
   function finishStage(message) {
     stopSpinner(true);
+    const elapsed = stageStartedAt ? formatElapsed(Date.now() - stageStartedAt) : null;
     if (message) {
-      stream.write(`${message}\n`);
+      stream.write(`${message}${elapsed ? ` (${elapsed})` : ""}\n`);
     }
   }
 
   function failStage(message) {
     stopSpinner(true);
-    stream.write(`${message}\n`);
+    const elapsed = stageStartedAt ? formatElapsed(Date.now() - stageStartedAt) : null;
+    stream.write(`${message}${elapsed ? ` (${elapsed})` : ""}\n`);
   }
 
   function stop() {

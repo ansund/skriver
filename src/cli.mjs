@@ -26,11 +26,16 @@ import {
 import { createProgressReporter } from "./lib/progress.mjs";
 import { runSetupCommand } from "./lib/setup.mjs";
 import { runTranscribeCommand } from "./lib/transcribe.mjs";
-import { formatTimestamp, parseOptionalPositiveInteger } from "./lib/utils.mjs";
+import {
+  formatTimestamp,
+  parseOptionalPositiveInteger,
+  setCommandLogging
+} from "./lib/utils.mjs";
 
 async function main() {
   try {
     const parsed = parseArgs(process.argv.slice(2));
+    setCommandLogging({ enabled: Boolean(parsed.options?.verbose) });
     if (parsed.version) {
       process.stdout.write(`${TOOL_NAME} ${TOOL_VERSION}\n`);
       return;
@@ -43,7 +48,7 @@ async function main() {
     switch (parsed.command) {
       case "transcribe": {
         const config = await buildTranscribeConfig(parsed.options);
-        const reporter = createProgressReporter({ enabled: !config.json });
+        const reporter = createProgressReporter({ enabled: !config.json, verbose: config.verbose });
         const result = await runTranscribeCommand(config, reporter);
         reporter.stop();
         if (config.json) {

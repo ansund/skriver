@@ -64,7 +64,7 @@ export async function transcribeAudio(config, run) {
     "--word_timestamps",
     "True",
     "--verbose",
-    "False",
+    config.verbose ? "True" : "False",
     "--threads",
     `${config.threads}`
   ];

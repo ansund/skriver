@@ -42,7 +42,7 @@ export function parseArgs(argv) {
 }
 
 function parseTranscribeArgs(command, argv) {
-  const options = { notes: [], contexts: [], json: false };
+  const options = { notes: [], contexts: [], json: false, verbose: false };
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -55,6 +55,10 @@ function parseTranscribeArgs(command, argv) {
     }
     if (arg === "--json") {
       options.json = true;
+      continue;
+    }
+    if (arg === "--verbose") {
+      options.verbose = true;
       continue;
     }
 
@@ -137,7 +141,7 @@ function parseTranscribeArgs(command, argv) {
 }
 
 function parseDoctorArgs(command, argv) {
-  const options = { json: false };
+  const options = { json: false, verbose: false };
 
   for (const arg of argv) {
     if (arg === "--help" || arg === "-h") {
@@ -145,6 +149,10 @@ function parseDoctorArgs(command, argv) {
     }
     if (arg === "--json") {
       options.json = true;
+      continue;
+    }
+    if (arg === "--verbose") {
+      options.verbose = true;
       continue;
     }
     throw new Error(`Unknown argument: ${arg}`);
@@ -154,7 +162,7 @@ function parseDoctorArgs(command, argv) {
 }
 
 function parseSetupArgs(command, argv) {
-  const options = { json: false };
+  const options = { json: false, verbose: false };
 
   for (const arg of argv) {
     if (arg === "--help" || arg === "-h") {
@@ -164,6 +172,10 @@ function parseSetupArgs(command, argv) {
       options.json = true;
       continue;
     }
+    if (arg === "--verbose") {
+      options.verbose = true;
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
 
@@ -171,7 +183,7 @@ function parseSetupArgs(command, argv) {
 }
 
 function parseInspectArgs(command, argv) {
-  const options = { json: false };
+  const options = { json: false, verbose: false };
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -180,6 +192,10 @@ function parseInspectArgs(command, argv) {
     }
     if (arg === "--json") {
       options.json = true;
+      continue;
+    }
+    if (arg === "--verbose") {
+      options.verbose = true;
       continue;
     }
     if (!options.runDir) {
@@ -193,7 +209,7 @@ function parseInspectArgs(command, argv) {
 }
 
 function parseGlossaryArgs(command, argv) {
-  const options = { action: "list", json: false };
+  const options = { action: "list", json: false, verbose: false };
   let startIndex = 0;
 
   if (argv[0] && !argv[0].startsWith("-")) {
@@ -208,6 +224,10 @@ function parseGlossaryArgs(command, argv) {
     }
     if (arg === "--json") {
       options.json = true;
+      continue;
+    }
+    if (arg === "--verbose") {
+      options.verbose = true;
       continue;
     }
 
@@ -294,6 +314,7 @@ Options:
   --max-speakers N            Upper diarization speaker-count bound
   --threads N                 Whisper CPU thread count
   --output-root PATH          Parent directory where <filename>-skriver should be created
+  --verbose                   Stream detailed command output while the run is executing
   --json                      Print final machine-readable JSON instead of a text summary
   --dry-run                   Create the folder structure without running media tools
   --help                      Show this help
@@ -307,6 +328,7 @@ Usage:
   skriver setup [--json]
 
 Options:
+  --verbose  Stream detailed command output during setup
   --json   Print machine-readable JSON instead of text
   --help   Show this help
 `;
@@ -319,6 +341,7 @@ Usage:
   skriver doctor [--json]
 
 Options:
+  --verbose  Stream detailed command output
   --json   Print machine-readable JSON instead of text
   --help   Show this help
 `;
@@ -331,6 +354,7 @@ Usage:
   skriver inspect /absolute/path/to/run-dir-or-run.json [--json]
 
 Options:
+  --verbose  Stream detailed command output
   --json   Print machine-readable JSON instead of text
   --help   Show this help
 `;
@@ -347,6 +371,7 @@ Options:
   --glossary PATH   Extra glossary file to layer on top of the default glossary
   --text TEXT       Text to check with glossary corrections
   --file PATH       File to check with glossary corrections
+  --verbose         Stream detailed command output
   --json            Print machine-readable JSON instead of text
   --help            Show this help
 `;
@@ -453,7 +478,8 @@ export async function buildTranscribeConfig(options) {
     threads,
     outputRoot: resolve(options.outputRoot || dirname(inputPath)),
     dryRun: Boolean(options.dryRun),
-    json: Boolean(options.json)
+    json: Boolean(options.json),
+    verbose: Boolean(options.verbose)
   };
 }
 

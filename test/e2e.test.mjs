@@ -354,9 +354,11 @@ test("mocked full e2e run merges transcript, manifest, context, screens, glossar
   assert.match(transcript, /## Open Questions/);
   assert.match(transcript, /## Context Files/);
   assert.match(transcript, /## Speaker Labels/);
+  assert.match(transcript, /## Evidence Review/);
+  assert.match(transcript, /The main transcript contains spoken content only\./);
   assert.match(transcript, /Speaker 1 = SPEAKER_00/);
   assert.match(transcript, /Speaker 2 = SPEAKER_01/);
-  assert.match(transcript, /\[00:00:00\] \[Screen\] HubSpot reporting or dashboard view\./);
+  assert.doesNotMatch(transcript, /\[Screen\]/);
   assert.match(transcript, /\[00:00:04\] \[User note\] Key decision point\./);
   assert.match(transcript, /Corrected likely technical terms: "skriver platform" -> "Skriver", "hub spot" -> "HubSpot"\./);
   assert.match(transcript, /\[00:00:00\] Speaker 1: Skriver målet är att hjälpa HubSpot och Ekobanken\./);
@@ -490,6 +492,47 @@ test("setup marks diarization ready and file-first invocation uses it by default
   assert.equal(afterParsed.diarizedSpeakers, 2);
 });
 
+test("setup explains missing pyannote clearly for a configured python override", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-setup-fail-"));
+  const shimsDir = path.join(tempRoot, "shims");
+  const configHome = path.join(tempRoot, "config");
+  await writeCommonShims(shimsDir);
+
+  await writeShim(
+    shimsDir,
+    "broken-python",
+    `
+const args = process.argv.slice(2);
+if (args[0] === "--version") {
+  process.stdout.write("Python 3.12.0\\n");
+  process.exit(0);
+}
+if (args[0] === "-c") {
+  process.stderr.write([
+    "Traceback (most recent call last):",
+    "  File \\"<string>\\", line 1, in <module>",
+    "ModuleNotFoundError: No module named 'pyannote'"
+  ].join("\\n"));
+  process.exit(1);
+}
+process.exit(1);
+`
+  );
+
+  const { stdout } = await runCli("setup", [], {
+    env: {
+      ...buildToolEnv(shimsDir),
+      SKRIVER_DIARIZATION_PYTHON: shimCommandPath(shimsDir, "broken-python"),
+      SKRIVER_CONFIG_HOME: configHome
+    }
+  });
+
+  assert.match(stdout, /Using diarization Python from SKRIVER_DIARIZATION_PYTHON/);
+  assert.match(stdout, /ModuleNotFoundError: No module named 'pyannote'/);
+  assert.match(stdout, /How to fix it:/);
+  assert.match(stdout, /unset `SKRIVER_DIARIZATION_PYTHON` and run `skriver setup` again/);
+});
+
 test("installed global binary boots through the package bin entry", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-bin-"));
   const prefix = path.join(tempRoot, "prefix");
@@ -507,6 +550,35 @@ test("installed global binary boots through the package bin entry", async () => 
 
   assert.match(stdout, /skriver/);
   assert.match(stdout, /<audio-or-video-file>/);
+});
+
+test("verbose transcribe streams subprocess details to stderr", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-verbose-"));
+  const inputPath = path.join(tempRoot, "meeting.m4a");
+  const outputRoot = path.join(tempRoot, "out");
+  const shimsDir = path.join(tempRoot, "shims");
+  await writeFile(inputPath, "placeholder audio");
+  await writeCommonShims(shimsDir);
+
+  const { stderr } = await runCliArgs([
+    inputPath,
+    "--screenshots",
+    "off",
+    "--diarization",
+    "off",
+    "--output-root",
+    outputRoot,
+    "--verbose"
+  ], {
+    env: {
+      ...buildToolEnv(shimsDir)
+    }
+  });
+
+  assert.match(stderr, /\[skriver\] \$ .*ffprobe/);
+  assert.match(stderr, /\[skriver\] \$ .*ffmpeg/);
+  assert.match(stderr, /\[skriver\] \$ .*whisper/);
+  assert.match(stderr, /command completed in/);
 });
 
 test("doctor command reports tool availability via env overrides", async () => {

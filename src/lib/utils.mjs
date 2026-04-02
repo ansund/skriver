@@ -1,5 +1,18 @@
 import { readFile, copyFile, symlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import process from "node:process";
+
+let commandLogging = {
+  enabled: false,
+  stream: process.stderr
+};
+
+export function setCommandLogging({ enabled = false, stream = process.stderr } = {}) {
+  commandLogging = {
+    enabled: Boolean(enabled),
+    stream
+  };
+}
 
 export function parseOptionalPositiveInteger(value, flagName) {
   if (value === undefined) {
@@ -268,28 +281,71 @@ export async function linkOrCopy(fromPath, toPath) {
 
 export async function runCommand(command, args) {
   return new Promise((resolvePromise, rejectPromise) => {
+    const startedAt = Date.now();
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
+    const shouldLog = commandLogging.enabled;
+    const stream = commandLogging.stream;
+
+    if (shouldLog) {
+      stream.write(`\n[skriver] $ ${formatCommand(command, args)}\n`);
+    }
 
     child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
+      const text = chunk.toString();
+      stdout += text;
+      if (shouldLog) {
+        stream.write(text);
+      }
     });
 
     child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
+      const text = chunk.toString();
+      stderr += text;
+      if (shouldLog) {
+        stream.write(text);
+      }
     });
 
     child.on("error", (error) => {
+      if (shouldLog) {
+        stream.write(`[skriver] command failed before launch finished: ${error.message}\n`);
+      }
       rejectPromise(error);
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
+        if (shouldLog) {
+          stream.write(`[skriver] command exited with code ${code} after ${formatCommandElapsed(Date.now() - startedAt)}\n`);
+        }
         rejectPromise(new Error(`${command} exited with code ${code}: ${stderr.trim() || stdout.trim()}`));
         return;
+      }
+      if (shouldLog) {
+        stream.write(`[skriver] command completed in ${formatCommandElapsed(Date.now() - startedAt)}\n`);
       }
       resolvePromise({ stdout, stderr });
     });
   });
+}
+
+function formatCommand(command, args) {
+  return [command, ...args].map(quoteShellArg).join(" ");
+}
+
+function quoteShellArg(value) {
+  if (/^[A-Za-z0-9_./:=+-]+$/.test(value)) {
+    return value;
+  }
+
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function formatCommandElapsed(milliseconds) {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${`${seconds}`.padStart(2, "0")}`;
 }

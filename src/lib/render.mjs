@@ -441,7 +441,7 @@ export function renderTranscriptMarkdown({
   lines.push(`- Created: ${run.metadata.createdAt}`);
   lines.push(`- Source: \`${run.metadata.inputPath}\``);
   lines.push(`- Language: \`${language}\``);
-  lines.push(`- Media: ${run.metadata.media.hasVideo ? "video" : "audio"}${run.metadata.media.hasVideo ? " with screen capture notes" : ""}`);
+  lines.push(`- Media: ${run.metadata.media.hasVideo ? "video with screenshot evidence" : "audio"}`);
   lines.push(`- Diarization: \`${run.metadata.diarization?.status || "skipped"}\``);
   lines.push(`- Final output: \`${run.transcriptFileName}\``);
   lines.push("");
@@ -521,7 +521,6 @@ export function renderTranscriptMarkdown({
   lines.push("## Transcript");
   lines.push("");
 
-  const pendingScreenNotes = [...screenNotes];
   const pendingTimedNotes = [...(noteData.timedNotes || [])];
   const pendingContextNotes = [...timedContextNotes];
 
@@ -534,11 +533,6 @@ export function renderTranscriptMarkdown({
     while (pendingContextNotes.length > 0 && pendingContextNotes[0].seconds <= segment.start) {
       const note = pendingContextNotes.shift();
       lines.push(`[${formatTimestamp(note.seconds)}] [Context] ${note.text}`);
-    }
-
-    while (pendingScreenNotes.length > 0 && pendingScreenNotes[0].seconds <= segment.start) {
-      const note = pendingScreenNotes.shift();
-      lines.push(`[${formatTimestamp(note.seconds)}] [Screen] ${note.description} Visible text: "${note.visibleText}".`);
     }
 
     const speakerPrefix = segment.speaker ? `${segment.speaker}: ` : "";
@@ -564,10 +558,6 @@ export function renderTranscriptMarkdown({
     lines.push(`[${formatTimestamp(note.seconds)}] [Context] ${note.text}`);
   }
 
-  for (const note of pendingScreenNotes) {
-    lines.push(`[${formatTimestamp(note.seconds)}] [Screen] ${note.description} Visible text: "${note.visibleText}".`);
-  }
-
   lines.push("");
   lines.push("## Applied Technical Term Corrections");
   lines.push("");
@@ -591,6 +581,19 @@ export function renderTranscriptMarkdown({
     for (const segment of lowConfidence.slice(0, 50)) {
       lines.push(`- [${formatTimestamp(segment.start)}] ${segment.text}`);
     }
+  }
+
+  lines.push("");
+  if (run.metadata.media.hasVideo) {
+    lines.push("## Evidence Review");
+    lines.push("");
+    lines.push("- The main transcript contains spoken content only.");
+    lines.push("- Review `evidence/video-screenshots/` and `evidence/video-ocr/screen_ocr.tsv` separately.");
+    if (screenNotes.length > 0) {
+      lines.push(`- Skriver extracted ${screenNotes.length} screen evidence note${screenNotes.length === 1 ? "" : "s"} in \`evidence/video-ocr/screen_notes.json\`.`);
+    }
+    lines.push("- Only merge screenshot or OCR details into the transcript when they clearly clarify what was said.");
+    lines.push("");
   }
 
   lines.push("");

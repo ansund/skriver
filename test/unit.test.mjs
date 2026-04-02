@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { __test__ } from "../src/cli.mjs";
+import { __test__ as setupTest } from "../src/lib/setup.mjs";
 import { incrementPatchVersion } from "../src/lib/versioning.mjs";
 
 const {
@@ -11,6 +12,7 @@ const {
   renderTranscriptMarkdown,
   serializeSummaryDraft
 } = __test__;
+const { buildFixSuggestions, summarizeProbe } = setupTest;
 
 test("parseArgs reads diarization options", () => {
   const parsed = parseArgs([
@@ -52,9 +54,40 @@ test("parseArgs reads root version flags", () => {
   assert.equal(parseArgs(["-v"]).version, true);
 });
 
+test("parseArgs reads verbose flags for transcribe and setup", () => {
+  assert.equal(parseArgs(["/tmp/meeting.mp4", "--verbose"]).options.verbose, true);
+  assert.equal(parseArgs(["setup", "--verbose"]).options.verbose, true);
+});
+
 test("incrementPatchVersion bumps the patch number", () => {
   assert.equal(incrementPatchVersion("0.1.0"), "0.1.1");
   assert.equal(incrementPatchVersion("12.9.41"), "12.9.42");
+});
+
+test("summarizeProbe prefers the actionable error line over traceback noise", () => {
+  const summary = summarizeProbe({
+    stdout: "",
+    stderr: [
+      "Traceback (most recent call last):",
+      "  File \"/tmp/check.py\", line 1, in <module>",
+      "ModuleNotFoundError: No module named 'pyannote'"
+    ].join("\n"),
+    error: null
+  }, "fallback");
+
+  assert.equal(summary, "ModuleNotFoundError: No module named 'pyannote'");
+});
+
+test("buildFixSuggestions explains how to recover from a missing pyannote override", () => {
+  const fixes = buildFixSuggestions({
+    issueCode: "missing-pyannote",
+    python: "/tmp/custom-python",
+    pythonSource: "override",
+    setupScript: "/tmp/setup-diarization.sh"
+  });
+
+  assert.ok(fixes.some((line) => line.includes("does not have `pyannote.audio` installed")));
+  assert.ok(fixes.some((line) => line.includes("unset `SKRIVER_DIARIZATION_PYTHON`")));
 });
 
 test("assignSpeakersToSegments maps diarization labels by overlap", () => {
@@ -144,9 +177,10 @@ test("renderTranscriptMarkdown includes summary, speakers, and artifacts", () =>
       metadata: {
         createdAt: "2026-03-25T12:00:00.000Z",
         inputPath: "/tmp/meeting.m4a",
-        media: { hasVideo: false },
+        media: { hasVideo: true },
         diarization: { status: "completed" }
-      }
+      },
+      transcriptFileName: "meeting-transcript.md"
     },
     language: "sv",
     noteData: { untimedNotes: ["Initial note"], timedNotes: [] },
@@ -160,7 +194,15 @@ test("renderTranscriptMarkdown includes summary, speakers, and artifacts", () =>
         lowConfidence: null
       }
     ],
-    screenNotes: [],
+    screenNotes: [
+      {
+        seconds: 0,
+        topic: "shared_screen",
+        frame: "/tmp/frame.jpg",
+        visibleText: "HubSpot dashboard",
+        description: "Shared screen content is visible."
+      }
+    ],
     contextArtifacts: [],
     timedContextNotes: [],
     corrections: [],
@@ -180,6 +222,10 @@ test("renderTranscriptMarkdown includes summary, speakers, and artifacts", () =>
   assert.match(markdown, /## Speaker Labels/);
   assert.match(markdown, /Speaker 1 = SPEAKER_00/);
   assert.match(markdown, /\[00:00:00\] Speaker 1: Hej allihopa\./);
+  assert.doesNotMatch(markdown, /\[Screen\]/);
+  assert.match(markdown, /## Evidence Review/);
+  assert.match(markdown, /spoken content only/);
   assert.match(markdown, /summary_draft\.json/);
   assert.match(markdown, /speaker_diarization\.json/);
+  assert.match(markdown, /screen_ocr\.tsv/);
 });
