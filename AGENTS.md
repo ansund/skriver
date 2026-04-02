@@ -1,12 +1,16 @@
 # AGENTS.md — skriver
 
-Use `skriver` when the user shares a meeting audio/video file and wants a transcript or a mmeting summary an artifact bundle another agent can reason over.
+Use `skriver` when the user shares a meeting audio/video file and wants a transcript, a meeting summary, or an artifact bundle another agent can reason over.
 
 The important product idea is:
 
 - `skriver` creates the first-pass transcript
 - `skriver` also creates an evidence bundle
 - the reviewing agent has an important job in turning that into the final clarified transcript
+
+When the task is to review a completed Skriver run or improve a final transcript from Skriver artifacts, use:
+
+- `skills/skriver-evidence-review/SKILL.md`
 
 ## Default workflow
 
@@ -46,14 +50,9 @@ skriver "/absolute/path/to/file.mp4" \
 
 ## Post-run review order
 
-1. `run.json`
-2. `<filename>-transcript.md`
-3. `evidence/whisper/summary_draft.json`
-4. `evidence/whisper/low_confidence_segments.json`
-5. `evidence/context/notes.json`
-6. `evidence/context/context_artifacts.json` if present
-7. `evidence/diarization/speaker_diarization.json` if present
-8. `evidence/video-ocr/screen_ocr.tsv`, `evidence/video-ocr/screen_notes.json`, and `evidence/video-screenshots/` for video runs
+Follow:
+
+- `docs/workflows/review-a-run.md`
 
 ## When to rerun
 

@@ -1,7 +1,7 @@
 ---
 const {
   title = "Skriver",
-  description = "Skriver is a local-first transcription CLI that turns meetings into agent-ready evidence.",
+  description = "Skriver is an AI meeting note taker, meeting transcript tool, and evidence-review skill for agents. It transcribes audio and video, creates meeting notes evidence, and helps agents produce better final summaries.",
   pageTitle = "Skriver"
 } = Astro.props;
 ---
@@ -37,19 +37,24 @@ const {
       operatingSystem: "macOS, Linux, Windows",
       description,
       url: "https://skriver.ansund.com/",
-      softwareVersion: "0.1.0",
+      softwareVersion: "0.1.2",
       offers: {
         "@type": "Offer",
         price: "0",
         priceCurrency: "USD"
       },
       featureList: [
+        "AI meeting note taker",
+        "Meeting transcript generation",
+        "Meeting notes evidence bundle",
         "Audio transcription",
         "Video transcription",
+        "Human notes input",
         "OCR screenshot context",
         "Local diarization",
         "Agent-ready artifacts",
-        "Manifest-driven run contract"
+        "run.json-driven run contract",
+        "Checked-in evidence review skill for agents"
       ]
     })} />
     <link rel="stylesheet" href="/styles/global.css" />

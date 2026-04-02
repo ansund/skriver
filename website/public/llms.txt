@@ -1,39 +1,128 @@
 # Skriver
 
-Skriver is a local-first transcription CLI for agents and humans.
+Skriver is an AI meeting note taker, meeting transcript tool, transcriber, and evidence-review skill for agents.
 
 ## Core idea
 
-Skriver turns meeting audio or video into an evidence bundle:
+Skriver is both:
 
-- run.json
-- <filename>-transcript.md
-- evidence/whisper/summary_draft.json
-- evidence/whisper/low_confidence_segments.json
-- evidence/context/notes.json
-- evidence/context/context_artifacts.json
-- evidence/diarization/speaker_diarization.json
-- evidence/video-ocr/screen_ocr.tsv for video
-- evidence/video-screenshots/ for video
+- the tool that creates the bundle
+- the skill that teaches the agent how to use that bundle well
 
-## What it does
+The tool creates a first-pass transcript plus a clean evidence folder.
+The skill teaches the agent how to read that folder, gather the right evidence, augment the transcript, and produce the best final summary without bluffing.
 
-- transcribes audio
-- transcribes video
-- extracts OCR from screenshots
-- accepts human notes from `.md` or `.txt` files
-- accepts custom glossary files with `--glossary`
-- can load default glossary files from `~/.skriver/config.json`
-- merges extra context files
-- applies glossary corrections
-- flags uncertain transcript segments
-- optionally runs local diarization
+## Why Skriver is useful
 
-## What it does not do
+- Transcribe audio and video into a conservative first-pass meeting transcript.
+- Capture the extra evidence a serious AI note taker should have: notes, screenshots, OCR, context, and diarization.
+- Notes are higher-trust clarification than OCR.
+- Add notes with `--notes-file ./notes.md` so they become part of the evidence bundle.
+- The agent’s second pass is where the best meeting notes and final summary are made.
 
-- no built-in hosted assistant
-- no hidden LLM summarizer
-- no replacing agent reasoning
+## The tool
+
+Skriver runs locally on audio and video, writes a readable first-pass transcript, and gives the agent the files a real AI meeting note taker should have:
+
+- notes
+- low-confidence segments
+- screenshots
+- OCR
+- context
+- optional diarization
+
+Key outputs:
+
+- `run.json`
+- `<filename>-transcript.md`
+- `evidence/whisper/summary_draft.json`
+- `evidence/whisper/low_confidence_segments.json`
+- `evidence/context/notes.json`
+- `evidence/context/context_artifacts.json`
+- `evidence/diarization/speaker_diarization.json`
+- `evidence/video-ocr/screen_ocr.tsv`
+- `evidence/video-ocr/screen_notes.json`
+- `evidence/video-screenshots/`
+
+What the key files mean:
+
+- `run.json` is the run contract. It tells the agent what completed and where to look next.
+- `<filename>-transcript.md` is a conservative first-pass meeting transcript. Good enough to start from. Honest enough to trust.
+- `evidence/` is the real payload: meeting notes, OCR, screenshots, context, and diarization for the second pass.
+
+## The skill
+
+This repo also ships a checked-in skill for agents:
+
+- `skills/skriver-evidence-review/SKILL.md`
+
+That skill teaches:
+
+- the review order
+- how to weigh notes against OCR
+- how to use screenshots and diarization as evidence
+- how to create the best final transcript, meeting notes, and summary
+
+Why that matters:
+
+- the best output does not come from the first transcript alone
+- it comes from the agent working the evidence folder carefully and turning it into better meeting notes
+- the transcript is conservative enough to trust
+- the evidence bundle gives the agent receipts
+- the skill teaches the review method, not just the command
+
+## Install
+
+macOS / Linux:
+
+`curl -fsSL https://skriver.ansund.com/install.sh | bash`
+
+npm:
+
+`npm install -g github:ansund/skriver`
+
+Windows PowerShell:
+
+`irm https://skriver.ansund.com/install.ps1 | iex`
+
+## Use
+
+Check the machine:
+
+```bash
+skriver doctor
+skriver setup
+```
+
+Run on a file:
+
+```bash
+skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md
+```
+
+Recommended:
+
+- put your human meeting notes in a `.md` file
+- attach them as evidence with `--notes-file`
+
+Optional glossary:
+
+```bash
+skriver /absolute/path/to/meeting.mp4 \
+  --notes-file ./notes.md \
+  --glossary ./team-glossary.txt
+```
+
+A glossary helps a meeting transcriber handle:
+
+- abbreviations
+- product names
+- company terms
+- English terms spoken inside Swedish or another language
+
+Skriver can also load glossary files automatically from:
+
+- `~/.skriver/config.json`
 
 ## Recommended agent workflow
 
@@ -46,18 +135,17 @@ Skriver turns meeting audio or video into an evidence bundle:
 7. Review `evidence/context/context_artifacts.json`
 8. Review `evidence/diarization/speaker_diarization.json` if present
 9. Review `evidence/video-ocr/screen_ocr.tsv`, `evidence/video-ocr/screen_notes.json`, and `evidence/video-screenshots/` for video
+10. Use the checked-in skill in `skills/skriver-evidence-review/SKILL.md` to augment the transcript and produce the best final summary
 
-Important rule:
+## Important rules
 
 - Do not merge OCR into the transcript automatically.
 - Use screenshots, OCR, and diarization as evidence to improve the final transcript carefully.
+- Notes should be treated as higher-trust human clarification.
+- The best final transcript and meeting notes come from the second pass through the evidence folder.
 
-## Install
+## What Skriver does not do
 
-macOS/Linux:
-
-`curl -fsSL https://skriver.ansund.com/install.sh | bash`
-
-Windows PowerShell:
-
-`irm https://skriver.ansund.com/install.ps1 | iex`
+- no built-in hosted assistant
+- no hidden LLM summarizer
+- no replacing agent reasoning

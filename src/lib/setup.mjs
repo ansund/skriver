@@ -41,9 +41,14 @@ except Exception as exc:
 print("ok")
 `;
 
-export async function runSetupCommand({ json = false } = {}) {
+export async function runSetupCommand({ json = false } = {}, reporter = null) {
   const checkedAt = new Date().toISOString();
   const configPath = getUserConfigPath();
+  if (reporter && !json) {
+    reporter.info(renderSetupIntro({ configPath }));
+  }
+
+  reporter?.startStage("Setup 1/4", "Checking local media tools");
   const doctor = await runDoctorCommand({ json: true });
   const requiredFailures = doctor.checks.filter((check) => check.required && !check.ok);
   const setupScript = process.env.SKRIVER_SETUP_DIARIZATION_SCRIPT || join(TOOL_ROOT, "scripts", "setup-diarization.sh");
@@ -61,7 +66,15 @@ export async function runSetupCommand({ json = false } = {}) {
       ? "Base media dependencies look available."
       : `Missing required tools: ${requiredFailures.map((check) => check.id).join(", ")}.`
   });
+  reporter?.finishStage(steps.at(-1).detail);
 
+  reporter?.startStage(
+    "Setup 2/4",
+    !python || pythonSource === "system"
+      ? "Preparing diarization environment"
+      : "Checking existing diarization environment",
+    !python || pythonSource === "system" ? "This may take a while" : null
+  );
   if (!python || pythonSource === "system") {
     installAttempted = true;
     try {
@@ -77,6 +90,7 @@ export async function runSetupCommand({ json = false } = {}) {
           setupScript
         })
       });
+      reporter?.finishStage(steps.at(-1).detail);
     } catch (error) {
       installError = error;
       steps.push({
@@ -84,6 +98,7 @@ export async function runSetupCommand({ json = false } = {}) {
         ok: false,
         detail: summarizeErrorMessage(error.message, "Could not prepare the diarization environment.")
       });
+      reporter?.failStage(steps.at(-1).detail);
     }
   } else {
     steps.push({
@@ -91,6 +106,7 @@ export async function runSetupCommand({ json = false } = {}) {
       ok: true,
       detail: describeExistingPython({ python, pythonSource })
     });
+    reporter?.finishStage(steps.at(-1).detail);
   }
 
   let importCheck = null;
@@ -103,14 +119,24 @@ export async function runSetupCommand({ json = false } = {}) {
     issueCode = installError ? "install-failed" : "missing-python";
     reason = installError?.message || "Could not find a diarization Python environment after setup.";
   } else {
+    reporter?.startStage("Setup 3/4", "Verifying pyannote import");
     importCheck = await inspectCommand(python, ["-c", IMPORT_CHECK_SCRIPT]);
     steps.push({
       id: "import",
       ok: importCheck.available && importCheck.code === 0,
       detail: summarizeProbe(importCheck, "pyannote.audio is importable.")
     });
+    if (steps.at(-1).ok) {
+      reporter?.finishStage(steps.at(-1).detail);
+    } else {
+      reporter?.failStage(steps.at(-1).detail);
+    }
 
     if (importCheck.available && importCheck.code === 0) {
+      reporter?.startStage("Setup 4/4", "Verifying diarization model access", "This can take 10-90s");
+      if (!process.env.HF_TOKEN && !process.env.HUGGINGFACE_TOKEN && !process.env.HUGGINGFACEHUB_API_TOKEN) {
+        reporter?.info("No Hugging Face token env detected. Setup will still try local or cached access.");
+      }
       modelCheck = await inspectCommand(python, ["-c", MODEL_CHECK_SCRIPT]);
       ready = modelCheck.available && modelCheck.code === 0;
       issueCode = ready ? null : classifyModelIssue(modelCheck);
@@ -125,6 +151,11 @@ export async function runSetupCommand({ json = false } = {}) {
           ? `Verified diarization model access for ${DEFAULT_DIARIZATION_MODEL}.`
           : reason
       });
+      if (ready) {
+        reporter?.finishStage(steps.at(-1).detail);
+      } else {
+        reporter?.failStage(steps.at(-1).detail);
+      }
     } else {
       issueCode = classifyImportIssue(importCheck);
       reason = summarizeProbe(importCheck, "pyannote.audio could not be imported.");
@@ -269,6 +300,17 @@ function renderSetupText(result) {
   }
 
   return lines.join("\n");
+}
+
+function renderSetupIntro({ configPath }) {
+  const ui = createTerminalUi({ color: Boolean(process.stdout?.isTTY) });
+  return ui.box(
+    ui.bold(`${TOOL_NAME} setup wizard`),
+    [
+      "Prepare diarization so it can run by default on normal transcription runs.",
+      ui.dim(`Config file: ${configPath}`)
+    ]
+  );
 }
 
 function classifyDiarizationPython(python) {

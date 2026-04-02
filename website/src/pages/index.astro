@@ -5,320 +5,190 @@ const repoUrl = "https://github.com/ansund/skriver";
 const siteUrl = "https://skriver.ansund.com";
 const installUrl = `${siteUrl}/install.sh`;
 const installPsUrl = `${siteUrl}/install.ps1`;
-const quickstarts = [
-  {
-    id: "one-liner",
-    label: "One-liner",
-    description: "Fastest path on macOS and Linux.",
-    command: `curl -fsSL ${installUrl} | bash`
-  },
-  {
-    id: "npm",
-    label: "npm",
-    description: "Direct global install from GitHub.",
-    command: "npm install -g github:ansund/skriver"
-  },
-  {
-    id: "pnpm",
-    label: "pnpm",
-    description: "If you already live in pnpm land.",
-    command: "pnpm add -g github:ansund/skriver"
-  },
-  {
-    id: "windows",
-    label: "Windows",
-    description: "PowerShell install script.",
-    command: `irm ${installPsUrl} | iex`
-  }
-];
-
-const artifactRows = [
-  ["run.json", "Machine-readable run state that tells agents which stages completed and where the evidence lives."],
-  ["<filename>-transcript.md", "Readable first-pass transcript that stays focused on spoken content."],
-  ["summary_draft.json", "Deterministic summary candidates, actions, and open questions."],
-  ["low_confidence_segments.json", "Segments worth reviewing before publishing a final transcript or summary."],
-  ["notes.json", "Parsed human notes, treated as higher-trust clarification than OCR."],
-  ["speaker_diarization.json", "Anonymous diarization segments when local speaker detection completes."],
-  ["context_artifacts.json", "Extracted notes from slides, PDFs, docs, emails, and image inputs."],
-  ["screen_ocr.tsv + screenshots", "Video evidence for agents to inspect before deciding what belongs in the final transcript."]
-];
-
-const faq = [
-  {
-    question: "Does Skriver do the summary itself?",
-    answer: "Not in the hand-wavey LLM product sense. Skriver does deterministic extraction and drafting so your agent can reason from evidence instead of guesswork."
-  },
-  {
-    question: "Why Astro for the website?",
-    answer: "Because the page stays static, semantic, and crawlable. Agents and search crawlers get the actual content directly from HTML instead of chasing client-side rendering."
-  },
-  {
-    question: "What happens after install?",
-    answer: "Run `skriver doctor`, then `skriver file.mp4`. Every run produces a clean bundle with `run.json`, the main transcript, and the evidence artifacts your agent needs to improve the final output."
-  },
-  {
-    question: "Can I teach Skriver my own terms?",
-    answer: "Yes. Use `--glossary /path/to/file.txt` for a run-specific glossary, or add `defaults.glossaryPaths` in `~/.skriver/config.json` to load a glossary automatically on every run."
-  }
-];
 ---
 
 <BaseLayout
-  title="Skriver | A Local-First Transcription CLI for Agents"
+  title="Skriver | AI Meeting Note Taker, Meeting Transcript Tool, And Agent Skill"
   pageTitle="Skriver"
-  description="Skriver is a local-first transcription CLI for agents and humans. Transcribe audio and video, capture OCR context, run local diarization, and produce clean artifacts for downstream reasoning."
+  description="Skriver is an AI meeting note taker and meeting transcript tool for agents. It transcribes audio and video, creates evidence-rich meeting notes, and teaches the agent how to turn that bundle into the best final transcript and summary."
 >
   <main id="content" class="page-shell">
-    <div class="ambient ambient-left"></div>
-    <div class="ambient ambient-right"></div>
-
     <header class="site-header">
       <a class="brand" href="/">Skriver</a>
       <nav class="site-nav" aria-label="Primary">
-        <a href="#quickstart">Quick Start</a>
-        <a href="#artifacts">Artifacts</a>
-        <a href="#agents">For Agents</a>
+        <a href="#install">Install</a>
+        <a href="#tool">Tool</a>
+        <a href="#skill">Skill</a>
+        <a href="#use">Use</a>
         <a href={repoUrl} target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
 
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">local-first • agent-first • gloriously inspectable</p>
-        <h1>Skriver turns meetings into evidence your agent can actually use.</h1>
+        <p class="eyebrow">ai meeting note taker • meeting transcript tool • tool + skill</p>
+        <h1>Skriver is an AI meeting note taker and transcriber with the evidence your agent actually needs.</h1>
         <p class="lede">
-          Audio in. Video in. Notes in. Out comes a tidy run directory with a readable transcript,
-          OCR context, diarization artifacts, confidence flags, and a run state file that tells your
-          agent where to look next.
+          Skriver records a meeting transcript, builds a clean meeting notes evidence folder, and
+          teaches the agent how to turn that first pass into the best final transcript, summary,
+          actions, and decisions without bluffing.
         </p>
-        <div class="hero-actions">
-          <a class="button button-primary" href="#quickstart">Install in one line</a>
-          <a class="button button-secondary" href={repoUrl} target="_blank" rel="noreferrer">View GitHub</a>
-        </div>
-        <ul class="signal-list" aria-label="Core promises">
-          <li>Static HTML that agents and crawlers can parse without drama.</li>
-          <li>No built-in fake reasoning layer. The artifacts do the talking.</li>
-          <li>Readable for humans, structured for agents.</li>
+        <ul class="signal-list" aria-label="Core points">
+          <li>Transcribe audio and video into a conservative first-pass meeting transcript.</li>
+          <li>Capture the extra evidence a serious AI note taker should have: notes, screenshots, OCR, context, and diarization.</li>
+          <li>Notes are higher-trust clarification than OCR.</li>
+          <li>Add notes with <code>--notes-file ./notes.md</code> so they become part of the evidence bundle.</li>
+          <li>The agent’s second pass is where the best meeting notes and final summary are made.</li>
         </ul>
       </div>
 
-      <aside class="hero-card" aria-label="Terminal preview">
+      <aside class="hero-card" aria-label="Example output">
         <div class="terminal-chrome">
           <span class="dot dot-red"></span>
           <span class="dot dot-yellow"></span>
           <span class="dot dot-green"></span>
-          <span class="terminal-label">agent-ready output</span>
+          <span class="terminal-label">tool output</span>
         </div>
-        <pre class="terminal-body"><code># fresh run directory
-board-sync-skriver/
-
-run.json
-board-sync-transcript.md
-evidence/
-  whisper/
-  context/
-  diarization/
-  video-ocr/
-  video-screenshots/</code></pre>
+        <pre class="terminal-body"><code>meeting-skriver/
+  meeting-transcript.md
+  run.json
+  evidence/
+    whisper/
+    context/
+    video-ocr/
+    video-screenshots/
+    diarization/</code></pre>
       </aside>
     </section>
 
-    <section id="quickstart" class="section">
-      <div class="section-heading">
-        <span class="section-mark">&gt;</span>
-        <div>
-          <p class="section-kicker">Quick Start</p>
-          <h2>One-liner first. Confusion later. Preferably never.</h2>
-        </div>
-      </div>
-
-      <div class="quickstart-panel" data-quickstart-root>
-        <div class="quickstart-toolbar">
-          <div class="tab-row" role="tablist" aria-label="Install method">
-            {quickstarts.map((item, index) => (
-              <button
-                class:list={["tab-button", index === 0 && "is-active"]}
-                type="button"
-                role="tab"
-                aria-selected={index === 0 ? "true" : "false"}
-                aria-controls={`panel-${item.id}`}
-                id={`tab-${item.id}`}
-                data-tab-target={item.id}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <p class="toolbar-badge">agent-tested beta</p>
-        </div>
-
-        <div class="quickstart-panels">
-          {quickstarts.map((item, index) => (
-            <section
-              id={`panel-${item.id}`}
-              role="tabpanel"
-              aria-labelledby={`tab-${item.id}`}
-              class:list={["command-panel", index === 0 && "is-active"]}
-              data-tab-panel={item.id}
-            >
-              <p class="panel-note">{item.description}</p>
-              <div class="command-line">
-                <code>{item.command}</code>
-                <button
-                  class="copy-button"
-                  type="button"
-                  data-copy={item.command}
-                  aria-label={`Copy ${item.label} install command`}
-                >
-                  Copy
-                </button>
-              </div>
-            </section>
-          ))}
-        </div>
-
-        <p class="quickstart-footnote">
-          Honest version: the one-liner gets the CLI onto your machine. Then <code>skriver doctor</code>
-          tells you which local media tools are still missing for full transcription. After that,
-          the real happy path is <code>skriver setup</code> followed by <code>skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md</code>.
-        </p>
-      </div>
-    </section>
-
-    <section id="agents" class="section split-grid">
+    <section id="tool" class="section split-grid">
       <div>
         <div class="section-heading compact">
           <span class="section-mark">*</span>
           <div>
-            <p class="section-kicker">For Agents</p>
-            <h2>Built for the second step, not just the first command.</h2>
+            <p class="section-kicker">The Tool</p>
+            <h2>Make the best possible starting point for a meeting transcript.</h2>
           </div>
         </div>
         <p>
-          Skriver doesn’t pretend the transcript is the end of the workflow. It produces the
-          follow-up bundle your agent needs: a conservative first-pass transcript, a run state
-          file that points to everything else, and the evidence artifacts needed to improve the
-          final transcript carefully.
+          Skriver runs locally on audio and video, writes a readable first-pass transcript, and
+          gives the agent the files a real AI meeting note taker should have: notes, low-confidence
+          segments, screenshots, OCR, context, and optional diarization.
         </p>
       </div>
 
       <div class="feature-stack">
         <article class="feature-card">
           <h3><code>run.json</code></h3>
-          <p>One machine-readable index for agents. No guessing. No scraping filenames. No “where did the OCR go?” energy.</p>
+          <p>The run contract. It tells the agent what completed and where to look next.</p>
+        </article>
+        <article class="feature-card">
+          <h3><code>meeting-transcript.md</code></h3>
+          <p>A conservative first-pass meeting transcript. Good enough to start from. Honest enough to trust.</p>
         </article>
         <article class="feature-card">
           <h3><code>evidence/</code></h3>
-          <p>The important second step. Agents should inspect notes, screenshots, OCR, diarization, and low-confidence segments before polishing the final transcript.</p>
+          <p>The real payload: meeting notes, OCR, screenshots, context, and diarization for the second pass. Notes added with <code>--notes-file</code> are especially important evidence.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="skill" class="section split-grid">
+      <div>
+        <div class="section-heading compact">
+          <span class="section-mark">//</span>
+          <div>
+            <p class="section-kicker">The Skill</p>
+            <h2>Learn how to turn the bundle into the best final notes.</h2>
+          </div>
+        </div>
+        <p>
+          This repo also ships a checked-in skill for agents:
+          <code>skills/skriver-evidence-review/SKILL.md</code>.
+          That skill teaches the review order, how to weigh notes against OCR, how to use screenshots
+          and diarization as evidence, and how to create the best final transcript, meeting notes,
+          and summary.
+        </p>
+      </div>
+
+      <div class="feature-stack">
+        <article class="feature-card">
+          <h3>Why it matters</h3>
+          <p>The best output does not come from the first transcript alone. It comes from the agent working the evidence folder carefully and turning it into better meeting notes.</p>
         </article>
         <article class="feature-card">
-          <h3><code>llms.txt</code></h3>
-          <p>The site ships with agent-readable product notes too, because crawlers deserve a clean path and not a JavaScript labyrinth.</p>
+          <h3>What it teaches</h3>
+          <p>Read `run.json`, inspect low-confidence segments, trust notes, use screenshots carefully, and never merge OCR blindly into a meeting transcript.</p>
+        </article>
+        <article class="feature-card">
+          <h3>What you get</h3>
+          <p>A better final transcript, stronger meeting notes, cleaner actions, and less hallucinated certainty.</p>
         </article>
       </div>
     </section>
 
-    <section id="artifacts" class="section">
+    <section id="install" class="section">
       <div class="section-heading">
-        <span class="section-mark">//</span>
+        <span class="section-mark">&gt;</span>
         <div>
-          <p class="section-kicker">Artifacts</p>
-          <h2>The transcript is readable. The folder is inspectable. The rest is workflow.</h2>
+          <p class="section-kicker">Install</p>
+          <h2>Install the tool globally.</h2>
         </div>
       </div>
 
-      <div class="artifact-table" role="table" aria-label="Artifact overview">
-        {artifactRows.map(([name, description]) => (
-          <div class="artifact-row" role="row">
-            <div class="artifact-name" role="cell"><code>{name}</code></div>
-            <div class="artifact-description" role="cell">{description}</div>
-          </div>
-        ))}
+      <div class="feature-stack">
+        <article class="feature-card">
+          <h3>macOS / Linux</h3>
+          <pre class="terminal-body"><code>{`curl -fsSL ${installUrl} | bash`}</code></pre>
+        </article>
+        <article class="feature-card">
+          <h3>npm</h3>
+          <pre class="terminal-body"><code>npm install -g github:ansund/skriver</code></pre>
+        </article>
+        <article class="feature-card">
+          <h3>Windows</h3>
+          <pre class="terminal-body"><code>{`irm ${installPsUrl} | iex`}</code></pre>
+        </article>
       </div>
     </section>
 
-    <section class="section narrative-grid">
-      <article class="narrative-card">
-        <p class="section-kicker">SEO Friendly</p>
-        <h2>Plain HTML, semantic sections, zero mystery meat.</h2>
-        <p>
-          Astro keeps the page fast and crawlable. Search bots, AI agents, and actual people all
-          get the same readable content without waiting for a client app to boot.
-        </p>
-      </article>
-
-      <article class="narrative-card">
-        <p class="section-kicker">Quirky, not precious</p>
-        <h2>A terminal toybox with manners.</h2>
-        <p>
-          The design leans playful, but the copy stays direct: what it installs, what it outputs,
-          and how an agent should use it next.
-        </p>
-      </article>
-    </section>
-
-    <section class="section faq-section">
+    <section id="use" class="section">
       <div class="section-heading">
-        <span class="section-mark">?</span>
+        <span class="section-mark">&gt;&gt;</span>
         <div>
-          <p class="section-kicker">FAQ</p>
-          <h2>Small answers for the questions people and crawlers both tend to ask.</h2>
+          <p class="section-kicker">Use</p>
+          <h2>Use Skriver like an AI note taker with receipts.</h2>
         </div>
       </div>
 
-      <div class="faq-list">
-        {faq.map((item) => (
-          <details class="faq-item">
-            <summary>{item.question}</summary>
-            <p>{item.answer}</p>
-          </details>
-        ))}
+      <div class="feature-stack">
+        <article class="feature-card">
+          <h3>1. Check the machine</h3>
+          <pre class="terminal-body"><code>{`skriver doctor
+skriver setup`}</code></pre>
+        </article>
+        <article class="feature-card">
+          <h3>2. Run on a file</h3>
+          <pre class="terminal-body"><code>{`skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md`}</code></pre>
+          <p>Recommended: put your human meeting notes in a `.md` file and attach them as evidence.</p>
+        </article>
+        <article class="feature-card">
+          <h3>3. Optional glossary</h3>
+          <pre class="terminal-body"><code>{`skriver /absolute/path/to/meeting.mp4 \\
+  --notes-file ./notes.md \\
+  --glossary ./team-glossary.txt`}</code></pre>
+          <p>A glossary helps a meeting transcriber handle abbreviations, product names, and English terms inside Swedish or other languages more reliably.</p>
+        </article>
       </div>
     </section>
 
     <footer class="site-footer">
-      <p>Skriver is an open-source transcription CLI for agents and humans.</p>
+      <p>Skriver is an AI meeting note taker, transcriber, and evidence-review skill for agents.</p>
       <div class="footer-links">
         <a href={repoUrl} target="_blank" rel="noreferrer">GitHub</a>
-        <a href="https://github.com/ansund/skriver/blob/main/README.md" target="_blank" rel="noreferrer">Docs</a>
+        <a href="https://github.com/ansund/skriver/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
         <a href="/llms.txt">llms.txt</a>
       </div>
     </footer>
   </main>
-
-  <script>
-    const root = document.querySelector("[data-quickstart-root]");
-    if (root) {
-      const tabs = [...root.querySelectorAll("[data-tab-target]")];
-      const panels = [...root.querySelectorAll("[data-tab-panel]")];
-
-      const activate = (targetId) => {
-        tabs.forEach((tab) => {
-          const active = tab.dataset.tabTarget === targetId;
-          tab.classList.toggle("is-active", active);
-          tab.setAttribute("aria-selected", active ? "true" : "false");
-        });
-        panels.forEach((panel) => {
-          panel.classList.toggle("is-active", panel.dataset.tabPanel === targetId);
-        });
-      };
-
-      tabs.forEach((tab) => {
-        tab.addEventListener("click", () => activate(tab.dataset.tabTarget));
-      });
-
-      root.querySelectorAll("[data-copy]").forEach((button) => {
-        button.addEventListener("click", async () => {
-          const text = button.dataset.copy;
-          if (!text) return;
-          await navigator.clipboard.writeText(text);
-          const original = button.textContent;
-          button.textContent = "Copied";
-          window.setTimeout(() => {
-            button.textContent = original;
-          }, 1500);
-        });
-      });
-    }
-  </script>
 </BaseLayout>

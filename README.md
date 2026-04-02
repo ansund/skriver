@@ -11,6 +11,11 @@ skriver meeting.m4a
 
 It writes a sibling folder beside the source file, produces a first-pass transcript quickly, and then adds evidence that helps a human or agent turn that into the final clarified transcript.
 
+This repo now contains both:
+
+- the tool that creates the evidence bundle
+- the skill that teaches an agent how to use that bundle well
+
 Notes are file-based:
 
 - use `--notes-file notes.md` for the recommended path
@@ -51,6 +56,10 @@ Skriver is intentionally split into two layers:
 
 1. `skriver` creates the first-pass transcript and evidence bundle.
 2. A human or agent reviews the evidence and improves the transcript where needed.
+
+The checked-in agent skill lives here:
+
+- [skills/skriver-evidence-review/SKILL.md](./skills/skriver-evidence-review/SKILL.md)
 
 That means the main transcript should stay conservative:
 
@@ -126,21 +135,9 @@ The machine-readable state file is:
 
 ## Review Workflow
 
-The intended review order is:
+The review workflow lives here:
 
-1. Read `run.json`
-2. Read `meeting-transcript.md`
-3. Review `evidence/whisper/low_confidence_segments.json`
-4. Review `evidence/context/notes.json` and the original notes file
-5. Review `evidence/context/context_artifacts.json` if extra context was provided
-6. For video, inspect `evidence/video-screenshots/`, `evidence/video-ocr/screen_ocr.tsv`, and `evidence/video-ocr/screen_notes.json`
-7. If diarization completed, review `evidence/diarization/speaker_diarization.json`
-
-The key handoff is:
-
-- Skriver gives you a trustworthy first pass plus evidence.
-- The human or agent should use that evidence to augment, clarify, and carefully improve the final transcript.
-- OCR and screenshots should not be merged blindly into the transcript.
+- [docs/workflows/review-a-run.md](./docs/workflows/review-a-run.md)
 
 ## Commands
 
@@ -173,11 +170,9 @@ Current automated coverage includes:
 - [AGENTS.md](./AGENTS.md)
 - [docs/install.md](./docs/install.md)
 - [docs/architecture.md](./docs/architecture.md)
-- [docs/workflows/agent-augmented-transcript.md](./docs/workflows/agent-augmented-transcript.md)
-- [docs/workflows/human-review.md](./docs/workflows/human-review.md)
-- [current-state.md](./current-state.md)
-- [repo-cleanup.md](./repo-cleanup.md)
-- [ship-mvp.md](./ship-mvp.md)
+- [docs/glossary.md](./docs/glossary.md)
+- [docs/workflows/review-a-run.md](./docs/workflows/review-a-run.md)
+- [skills/skriver-evidence-review/SKILL.md](./skills/skriver-evidence-review/SKILL.md)
 
 ## License
 

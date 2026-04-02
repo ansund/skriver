@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skriver Evidence Review"
+  short_description: "Turn Skriver evidence bundles into final clarified transcripts"
+  default_prompt: "Review a Skriver run directory, use the evidence bundle carefully, improve the transcript, and produce the best summary grounded in the available evidence."

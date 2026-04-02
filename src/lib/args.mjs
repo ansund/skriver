@@ -299,12 +299,13 @@ Usage:
 
 Skriver writes a conservative first-pass transcript and an evidence bundle.
 The final clarified transcript usually comes from a human or agent reviewing that evidence.
+Add human notes as evidence with --notes-file ./notes.md.
 
 Options:
   --input PATH                Absolute or relative path to audio/video file
   --title TEXT                Folder/title label for the run
   --language auto|sv|en       Spoken language hint for Whisper
-  --notes-file PATH           Notes file (.md recommended, .md or .txt accepted)
+  --notes-file PATH           Add human notes as evidence (.md recommended, .md or .txt accepted)
   --context PATH              Extra context file or directory, repeatable
   --glossary PATH             Extra glossary file (.txt), layered on top of defaults
   --screenshots auto|on|off   Enable screenshot extraction for videos
@@ -320,6 +321,10 @@ Options:
   --json                      Print final machine-readable JSON instead of a text summary
   --dry-run                   Create the folder structure without running media tools
   --help                      Show this help
+
+Examples:
+  skriver meeting.mp4 --notes-file ./notes.md
+  skriver meeting.mp4 --notes-file ./notes.md --glossary ./team-glossary.txt
 `;
 }
 

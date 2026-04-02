@@ -14,6 +14,10 @@ export function setCommandLogging({ enabled = false, stream = process.stderr } =
   };
 }
 
+export function getCommandLogging() {
+  return commandLogging;
+}
+
 export function parseOptionalPositiveInteger(value, flagName) {
   if (value === undefined) {
     return null;

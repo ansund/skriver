@@ -64,7 +64,9 @@ async function main() {
         return;
       }
       case "setup": {
-        const result = await runSetupCommand(parsed.options);
+        const reporter = createProgressReporter({ enabled: !parsed.options.json, verbose: false });
+        const result = await runSetupCommand(parsed.options, reporter);
+        reporter.stop();
         process.stdout.write(parsed.options.json ? `${JSON.stringify(result, null, 2)}\n` : `${result.text}\n`);
         return;
       }
