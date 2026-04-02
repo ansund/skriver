@@ -16,8 +16,8 @@ import {
 
 export async function saveRunInputs(run, config) {
   const combinedNotes = await collectNotes(config.notesFile, config.notes);
-  await writeFile(join(run.runDir, "notes.txt"), combinedNotes.rawText, "utf8");
-  await writeFile(join(run.runDir, "notes.json"), JSON.stringify(combinedNotes, null, 2), "utf8");
+  await writeFile(run.notesTextPath, combinedNotes.rawText, "utf8");
+  await writeFile(run.notesJsonPath, `${JSON.stringify(combinedNotes, null, 2)}\n`, "utf8");
   run.metadata.notes = combinedNotes;
 }
 
@@ -63,7 +63,7 @@ export async function collectNotes(notesFile, inlineNotes) {
 
 export async function processContextFiles(config, run) {
   if (config.contextInputs.length === 0) {
-    await writeFile(join(run.runDir, "context_artifacts.json"), "[]\n", "utf8");
+    await writeFile(run.contextArtifactsPath, "[]\n", "utf8");
     return [];
   }
 
@@ -76,7 +76,7 @@ export async function processContextFiles(config, run) {
     artifacts.push(artifact);
   }
 
-  await writeFile(join(run.runDir, "context_artifacts.json"), JSON.stringify(artifacts, null, 2), "utf8");
+  await writeFile(run.contextArtifactsPath, `${JSON.stringify(artifacts, null, 2)}\n`, "utf8");
   return artifacts;
 }
 
@@ -103,7 +103,7 @@ async function expandContextInputs(inputs) {
 
 async function extractContextArtifact(config, run, inputPath, index) {
   const extension = extname(inputPath).toLowerCase();
-  const sourceTarget = join(run.contextsDir, `${index}-${basename(inputPath)}`);
+  const sourceTarget = join(run.contextDir, `${index}-${basename(inputPath)}`);
   await linkOrCopy(inputPath, sourceTarget);
 
   const timestampSeconds = extractTimestampFromPath(inputPath);
@@ -111,7 +111,7 @@ async function extractContextArtifact(config, run, inputPath, index) {
   const extractedText = await extractContextText(kind, inputPath, config.language);
   const normalizedText = normalizeMultilineText(extractedText);
   const excerpt = buildExcerpt(normalizedText);
-  const extractedTextPath = join(run.contextsDir, `${index}-${basename(inputPath, extension)}.txt`);
+  const extractedTextPath = join(run.contextDir, `${index}-${basename(inputPath, extension)}.txt`);
   await writeFile(extractedTextPath, normalizedText, "utf8");
 
   return {

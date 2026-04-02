@@ -1,63 +1,53 @@
 # Install
 
-## Base dependencies
-
-`skriver` currently runs from source and expects local media tools.
+## Base requirements
 
 Required:
 
 - Node.js `>=18.12`
-- `pnpm`
 - `ffmpeg`
 - `ffprobe`
 - `whisper`
 - `tesseract`
 
-Optional:
+Helpful extras:
 
-- `pdftotext` for PDF context extraction
-- `unzip` for PPTX extraction
-- `textutil` for richer document extraction on macOS
-- Python `3.11` or `3.12` for diarization
+- `pdftotext`
+- `unzip`
+- `textutil` on macOS
 
-## Repository setup
+## Global install
+
+```bash
+npm install -g github:ansund/skriver
+skriver --help
+```
+
+## From source
 
 ```bash
 git clone https://github.com/ansund/skriver.git
 cd skriver
-pnpm cli:help
 node src/cli.mjs doctor
+node src/cli.mjs --help
 ```
 
 ## Diarization setup
 
-Set up the local diarization environment:
+Run:
 
 ```bash
-pnpm setup-diarization
+skriver setup
 ```
 
-If the pyannote model has not been cached on your machine yet:
+The setup command is responsible for checking and preparing diarization. After it succeeds, diarization becomes the default behavior for normal transcription runs.
 
-1. Accept the access terms for `pyannote/speaker-diarization-community-1`
-2. Export a Hugging Face token
-3. Authenticate the local environment
-
-```bash
-export HF_TOKEN="hf_..."
-./.venv-diarization/bin/hf auth login --token "$HF_TOKEN"
-```
-
-Supported env vars:
-
-- `SKRIVER_DIARIZATION_PYTHON`
-- `SKRIVER_DIARIZATION_MODEL`
-- `SKRIVER_DIARIZATION_BOOTSTRAP_PYTHON`
+If the chosen diarization backend still needs model access or authentication, `skriver setup` should surface that clearly and leave diarization off until verification succeeds.
 
 ## First verification
 
 ```bash
-node src/cli.mjs doctor
-node src/cli.mjs transcribe --help
-pnpm test
+skriver doctor
+skriver setup
+skriver /absolute/path/to/meeting.mp4
 ```

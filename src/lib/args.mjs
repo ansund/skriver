@@ -1,13 +1,18 @@
-import { basename, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import os from "node:os";
 
-import { DEFAULT_GLOSSARY, DEFAULT_OUTPUT_ROOT, TOOL_NAME } from "./constants.mjs";
+import { DEFAULT_GLOSSARY, TOOL_NAME } from "./constants.mjs";
+import { getDefaultDiarizationMode, readUserConfig } from "./state.mjs";
 import { parseOptionalPositiveInteger } from "./utils.mjs";
 
 export function parseArgs(argv) {
   if (argv.length === 0) {
     return { help: true, command: null, options: {} };
+  }
+
+  if (argv[0] === "--version" || argv[0] === "-v") {
+    return { version: true, help: false, command: null, options: {} };
   }
 
   if (argv[0] === "--help" || argv[0] === "-h" || argv[0] === "help") {
@@ -20,6 +25,8 @@ export function parseArgs(argv) {
   switch (command) {
     case "transcribe":
       return parseTranscribeArgs(command, rest);
+    case "setup":
+      return parseSetupArgs(command, rest);
     case "doctor":
       return parseDoctorArgs(command, rest);
     case "inspect":
@@ -27,12 +34,15 @@ export function parseArgs(argv) {
     case "glossary":
       return parseGlossaryArgs(command, rest);
     default:
+      if (!command.startsWith("-")) {
+        return parseTranscribeArgs("transcribe", ["--input", command, ...rest]);
+      }
       return { help: true, command, options: {} };
   }
 }
 
 function parseTranscribeArgs(command, argv) {
-  const options = { notes: [], contexts: [], nextSteps: "json" };
+  const options = { notes: [], contexts: [], json: false };
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -41,6 +51,10 @@ function parseTranscribeArgs(command, argv) {
     }
     if (arg === "--dry-run") {
       options.dryRun = true;
+      continue;
+    }
+    if (arg === "--json") {
+      options.json = true;
       continue;
     }
 
@@ -114,10 +128,6 @@ function parseTranscribeArgs(command, argv) {
         options.outputRoot = next;
         i += 1;
         break;
-      case "--next-steps":
-        options.nextSteps = next;
-        i += 1;
-        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -127,6 +137,23 @@ function parseTranscribeArgs(command, argv) {
 }
 
 function parseDoctorArgs(command, argv) {
+  const options = { json: false };
+
+  for (const arg of argv) {
+    if (arg === "--help" || arg === "-h") {
+      return { help: true, command, options };
+    }
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  return { help: false, command, options };
+}
+
+function parseSetupArgs(command, argv) {
   const options = { json: false };
 
   for (const arg of argv) {
@@ -213,6 +240,8 @@ function parseGlossaryArgs(command, argv) {
 export function printHelp(command = null) {
   const render = command === "transcribe"
     ? renderTranscribeHelp()
+    : command === "setup"
+      ? renderSetupHelp()
     : command === "doctor"
       ? renderDoctorHelp()
       : command === "inspect"
@@ -229,9 +258,11 @@ function renderRootHelp() {
 
 Usage:
   skriver <command> [options]
+  skriver <audio-or-video-file> [options]
 
 Commands:
   transcribe   Transcribe audio or video into agent-ready artifacts
+  setup        Prepare and verify diarization so it can run by default
   doctor       Check local dependencies and optional diarization setup
   inspect      Review a run directory and print the next workflow steps
   glossary     List glossary entries or check text against glossary rules
@@ -257,15 +288,27 @@ Options:
   --screenshots auto|on|off   Enable screenshot extraction for videos
   --screenshot-interval N     Seconds between screenshots for videos
   --whisper-model NAME        Whisper model name (default: turbo)
-  --diarization auto|on|off   Local speaker diarization (default: auto)
+  --diarization auto|on|off   Local speaker diarization (default: off until setup is ready)
   --num-speakers N            Exact speaker count hint for diarization
   --min-speakers N            Lower diarization speaker-count bound
   --max-speakers N            Upper diarization speaker-count bound
   --threads N                 Whisper CPU thread count
-  --output-root PATH          Where run folders should be created
-  --next-steps json|text|none Include suggested post-processing steps (default: json)
+  --output-root PATH          Parent directory where <filename>-skriver should be created
+  --json                      Print final machine-readable JSON instead of a text summary
   --dry-run                   Create the folder structure without running media tools
   --help                      Show this help
+`;
+}
+
+function renderSetupHelp() {
+  return `${TOOL_NAME} setup
+
+Usage:
+  skriver setup [--json]
+
+Options:
+  --json   Print machine-readable JSON instead of text
+  --help   Show this help
 `;
 }
 
@@ -285,7 +328,7 @@ function renderInspectHelp() {
   return `${TOOL_NAME} inspect
 
 Usage:
-  skriver inspect /absolute/path/to/run-dir [--json]
+  skriver inspect /absolute/path/to/run-dir-or-run.json [--json]
 
 Options:
   --json   Print machine-readable JSON instead of text
@@ -335,14 +378,10 @@ export async function buildTranscribeConfig(options) {
     throw new Error("--screenshots must be auto, on, or off.");
   }
 
-  const diarization = (options.diarization || "auto").toLowerCase();
+  const userConfig = await readUserConfig();
+  const diarization = (options.diarization || getDefaultDiarizationMode(userConfig)).toLowerCase();
   if (!["auto", "on", "off"].includes(diarization)) {
     throw new Error("--diarization must be auto, on, or off.");
-  }
-
-  const nextSteps = (options.nextSteps || "json").toLowerCase();
-  if (!["json", "text", "none"].includes(nextSteps)) {
-    throw new Error("--next-steps must be json, text, or none.");
   }
 
   const screenshotInterval = Number.parseInt(options.screenshotInterval || "20", 10);
@@ -412,9 +451,9 @@ export async function buildTranscribeConfig(options) {
     minSpeakers,
     maxSpeakers,
     threads,
-    outputRoot: resolve(options.outputRoot || DEFAULT_OUTPUT_ROOT),
-    nextSteps,
-    dryRun: Boolean(options.dryRun)
+    outputRoot: resolve(options.outputRoot || dirname(inputPath)),
+    dryRun: Boolean(options.dryRun),
+    json: Boolean(options.json)
   };
 }
 
@@ -423,20 +462,22 @@ export async function buildInspectConfig(options) {
     throw new Error("inspect requires a run directory.");
   }
 
-  const runDirectory = resolve(options.runDir);
-  const runStats = await stat(runDirectory).catch(() => null);
-  if (!runStats || !runStats.isDirectory()) {
-    throw new Error(`Run directory not found: ${runDirectory}`);
+  const candidatePath = resolve(options.runDir);
+  const candidateStats = await stat(candidatePath).catch(() => null);
+  if (!candidateStats) {
+    throw new Error(`Run directory not found: ${candidatePath}`);
   }
 
-  const manifestPath = join(runDirectory, "manifest.json");
-  const manifestStats = await stat(manifestPath).catch(() => null);
-  if (!manifestStats || !manifestStats.isFile()) {
-    throw new Error(`manifest.json not found in ${runDirectory}`);
+  const runDirectory = candidateStats.isDirectory() ? candidatePath : dirname(candidatePath);
+  const runStatePath = candidateStats.isFile() ? candidatePath : join(runDirectory, "run.json");
+  const runStateStats = await stat(runStatePath).catch(() => null);
+  if (!runStateStats || !runStateStats.isFile()) {
+    throw new Error(`run.json not found in ${runDirectory}`);
   }
 
   return {
     runDirectory,
+    runStatePath,
     json: Boolean(options.json)
   };
 }

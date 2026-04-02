@@ -50,7 +50,7 @@ def main() -> int:
         from pyannote.audio import Pipeline
     except Exception as exc:  # pragma: no cover - import error path
         print(
-            "pyannote.audio is not installed in this environment. Run `pnpm setup-diarization` first.",
+            "pyannote.audio is not installed in this environment. Run `skriver setup` first.",
             file=sys.stderr,
         )
         print(str(exc), file=sys.stderr)

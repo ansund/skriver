@@ -38,6 +38,16 @@ async function runCli(command, args, options = {}) {
   });
 }
 
+async function runCliArgs(args, options = {}) {
+  return await execFileAsync(process.execPath, [cliPath, ...args], {
+    cwd: toolRoot,
+    env: {
+      ...process.env,
+      ...options.env
+    }
+  });
+}
+
 function buildToolEnv(shimsDir) {
   return {
     SKRIVER_FFMPEG_COMMAND: shimCommandPath(shimsDir, "ffmpeg"),
@@ -154,7 +164,7 @@ fs.writeFileSync(path.join(outDir, base + ".tsv"), "start\\tend\\ttext\\n0\\t3\\
     "tesseract",
     `
 const input = process.argv[2] || "";
-if (input.includes("frame_0001.jpg")) {
+if (input.includes("frame_0001.jpg") || input.includes("00-00-00.jpg")) {
   process.stdout.write("HubSpot dashboard Skriver launch plan");
 } else {
   process.stdout.write("Microsoft Teams");
@@ -195,6 +205,10 @@ const path = require("node:path");
 const args = process.argv.slice(2);
 if (args[0] === "--version") {
   process.stdout.write("Python 3.12.0\\n");
+  process.exit(0);
+}
+if (args[0] === "-c") {
+  process.stdout.write("ok\\n");
   process.exit(0);
 }
 let output = "";
@@ -247,7 +261,8 @@ test("dry-run e2e builds transcript, manifest, and summary placeholder", async (
     "off",
     "--dry-run",
     "--output-root",
-    outputRoot
+    outputRoot,
+    "--json"
   ], {
     env: {
       ...buildToolEnv(shimsDir)
@@ -257,18 +272,19 @@ test("dry-run e2e builds transcript, manifest, and summary placeholder", async (
   const parsed = JSON.parse(stdout.trim());
   assert.equal(parsed.ok, true);
   assert.equal(parsed.diarizationStatus, "skipped");
-  assert.ok(Array.isArray(parsed.nextSteps));
-  assert.ok(parsed.manifest.endsWith("manifest.json"));
+  assert.ok(parsed.runState.endsWith("run.json"));
+  assert.ok(parsed.transcript.endsWith("-transcript.md"));
 
-  const transcript = await readFile(path.join(parsed.runDirectory, "transcript.md"), "utf8");
-  const summaryDraft = JSON.parse(await readFile(path.join(parsed.runDirectory, "summary_draft.json"), "utf8"));
-  const manifest = JSON.parse(await readFile(path.join(parsed.runDirectory, "manifest.json"), "utf8"));
-  const workflow = await readFile(path.join(parsed.runDirectory, "workflow.md"), "utf8");
+  const transcript = await readFile(parsed.transcript, "utf8");
+  const summaryDraft = JSON.parse(await readFile(path.join(parsed.evidenceDirectory, "whisper", "summary_draft.json"), "utf8"));
+  const runState = JSON.parse(await readFile(parsed.runState, "utf8"));
 
   assert.match(transcript, /Auto-generated draft is unavailable in dry-run mode\./);
   assert.deepEqual(summaryDraft.overview, ["Auto-generated draft is unavailable in dry-run mode."]);
-  assert.equal(manifest.summary.diarizationStatus, "skipped");
-  assert.match(workflow, /Suggested workflow/);
+  assert.equal(runState.summary.diarizationStatus, "skipped");
+  assert.equal(runState.stages.transcript.status, "completed");
+  assert.equal(runState.stages.screenshots.status, "skipped");
+  assert.equal(runState.stages.diarization.status, "skipped");
 });
 
 test("mocked full e2e run merges transcript, manifest, context, screens, glossary, and diarization", async () => {
@@ -304,7 +320,8 @@ test("mocked full e2e run merges transcript, manifest, context, screens, glossar
     "--context",
     contextPath,
     "--output-root",
-    outputRoot
+    outputRoot,
+    "--json"
   ], {
     env: {
       ...buildToolEnv(shimsDir),
@@ -323,14 +340,13 @@ test("mocked full e2e run merges transcript, manifest, context, screens, glossar
   assert.equal(parsed.ok, true);
   assert.equal(parsed.diarizationStatus, "completed");
   assert.equal(parsed.diarizedSpeakers, 2);
-  assert.ok(parsed.nextSteps.some((step) => step.includes("manifest.json")));
+  assert.equal(parsed.screenshotStatus, "completed");
 
   const runDir = parsed.runDirectory;
-  const transcript = await readFile(path.join(runDir, "transcript.md"), "utf8");
-  const metadata = JSON.parse(await readFile(path.join(runDir, "metadata.json"), "utf8"));
-  const summaryDraft = JSON.parse(await readFile(path.join(runDir, "summary_draft.json"), "utf8"));
-  const diarization = JSON.parse(await readFile(path.join(runDir, "speaker_diarization.json"), "utf8"));
-  const manifest = JSON.parse(await readFile(path.join(runDir, "manifest.json"), "utf8"));
+  const transcript = await readFile(parsed.transcript, "utf8");
+  const runState = JSON.parse(await readFile(parsed.runState, "utf8"));
+  const summaryDraft = JSON.parse(await readFile(runState.artifacts.summaryDraft, "utf8"));
+  const diarization = JSON.parse(await readFile(runState.artifacts.diarization, "utf8"));
 
   assert.match(transcript, /## Summary/);
   assert.match(transcript, /## Key Insights/);
@@ -347,22 +363,25 @@ test("mocked full e2e run merges transcript, manifest, context, screens, glossar
   assert.match(transcript, /\[00:00:03\] Speaker 2: vi ska boka ett uppföljningsmöte nästa vecka\./i);
   assert.match(transcript, /\[00:00:06\] Speaker 1: hur ska vi beskriva Skriver på hemsidan\?/i);
   assert.match(transcript, /\[00:00:09\] \[Transcriber note\] Low ASR confidence\./);
-  assert.match(transcript, /manifest\.json/);
-  assert.match(transcript, /workflow\.md/);
+  assert.match(transcript, /run\.json/);
+  assert.match(transcript, /evidence\/video-ocr\/screen_ocr\.tsv/);
   assert.match(transcript, /05-30-context\.txt/);
 
-  assert.equal(metadata.diarization.status, "completed");
-  assert.equal(metadata.diarization.speakerCount, 2);
+  assert.equal(runState.diarization.status, "completed");
+  assert.equal(runState.diarization.speakerCount, 2);
   assert.equal(diarization.speakerCount, 2);
-  assert.equal(manifest.summary.diarizationStatus, "completed");
-  assert.equal(manifest.summary.contextFileCount, 1);
-  assert.equal(manifest.artifacts.workflowGuide.exists, true);
+  assert.equal(runState.summary.diarizationStatus, "completed");
+  assert.equal(runState.summary.contextFileCount, 1);
+  assert.equal(runState.stages.transcript.status, "completed");
+  assert.equal(runState.stages.screenshots.status, "completed");
+  assert.equal(runState.stages.diarization.status, "completed");
   assert.ok(summaryDraft.keyInsights.length >= 1);
   assert.ok(summaryDraft.actions.some((item) => item.categories.includes("action")));
   assert.ok(summaryDraft.openQuestions.some((item) => item.categories.includes("question")));
 
-  await stat(path.join(runDir, "screen_ocr.tsv"));
-  await stat(path.join(runDir, "context_artifacts.json"));
+  await stat(runState.artifacts.screenOcr);
+  await stat(runState.artifacts.contextArtifacts);
+  assert.equal(path.basename(runDir), "meeting-skriver");
 });
 
 test("inspect command summarizes a completed run", async () => {
@@ -386,7 +405,8 @@ test("inspect command summarizes a completed run", async () => {
     "--screenshots",
     "off",
     "--output-root",
-    outputRoot
+    outputRoot,
+    "--json"
   ], {
     env: {
       ...buildToolEnv(shimsDir)
@@ -399,19 +419,107 @@ test("inspect command summarizes a completed run", async () => {
 
   assert.equal(parsed.ok, true);
   assert.equal(parsed.runDirectory, runDir);
-  assert.ok(parsed.suggestedArtifacts.some((item) => item.endsWith("manifest.json")));
-  assert.ok(parsed.nextSteps.some((step) => step.includes("source of truth")));
+  assert.ok(parsed.suggestedArtifacts.some((item) => item.endsWith("summary_draft.json")));
+  assert.ok(parsed.nextSteps.some((step) => step.includes("Read")));
+});
+
+test("setup marks diarization ready and file-first invocation uses it by default", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-setup-"));
+  const shimsDir = path.join(tempRoot, "shims");
+  const outputRoot = path.join(tempRoot, "out");
+  const configHome = path.join(tempRoot, "config");
+  const inputPath = path.join(tempRoot, "meeting.mp4");
+
+  await writeCommonShims(shimsDir);
+  await writeFile(inputPath, "placeholder video");
+
+  const sharedEnv = {
+    ...buildToolEnv(shimsDir),
+    SKRIVER_DIARIZATION_PYTHON: shimCommandPath(shimsDir, "fake-python"),
+    SKRIVER_CONFIG_HOME: configHome,
+    SKRIVER_TEST_MEDIA_JSON: JSON.stringify({
+      streams: [
+        { index: 0, codec_type: "audio" },
+        { index: 1, codec_type: "video" }
+      ],
+      format: { duration: "12.0" }
+    })
+  };
+
+  const beforeSetup = await runCliArgs([
+    inputPath,
+    "--title",
+    "Before setup",
+    "--screenshots",
+    "off",
+    "--output-root",
+    outputRoot,
+    "--json"
+  ], {
+    env: sharedEnv
+  });
+
+  const beforeParsed = JSON.parse(beforeSetup.stdout.trim());
+  assert.equal(beforeParsed.diarizationStatus, "disabled");
+
+  const setup = await runCli("setup", ["--json"], {
+    env: sharedEnv
+  });
+  const setupParsed = JSON.parse(setup.stdout.trim());
+  assert.equal(setupParsed.ok, true);
+  assert.equal(setupParsed.diarization.ready, true);
+
+  const storedConfig = JSON.parse(await readFile(path.join(configHome, "config.json"), "utf8"));
+  assert.equal(storedConfig.setup.diarization.ready, true);
+
+  const afterSetup = await runCliArgs([
+    inputPath,
+    "--title",
+    "After setup",
+    "--screenshots",
+    "off",
+    "--output-root",
+    outputRoot,
+    "--json"
+  ], {
+    env: sharedEnv
+  });
+
+  const afterParsed = JSON.parse(afterSetup.stdout.trim());
+  assert.equal(afterParsed.diarizationStatus, "completed");
+  assert.equal(afterParsed.diarizedSpeakers, 2);
+});
+
+test("installed global binary boots through the package bin entry", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-bin-"));
+  const prefix = path.join(tempRoot, "prefix");
+
+  await execFileAsync("npm", ["install", "-g", ".", "--prefix", prefix], {
+    cwd: toolRoot,
+    env: process.env
+  });
+
+  const installedBin = path.join(prefix, "bin", "skriver");
+  const { stdout } = await execFileAsync(installedBin, ["--help"], {
+    cwd: toolRoot,
+    env: process.env
+  });
+
+  assert.match(stdout, /skriver/);
+  assert.match(stdout, /<audio-or-video-file>/);
 });
 
 test("doctor command reports tool availability via env overrides", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-doctor-"));
   const shimsDir = path.join(tempRoot, "shims");
+  const configHome = path.join(tempRoot, "config");
   await writeCommonShims(shimsDir);
 
   const { stdout } = await runCli("doctor", ["--json"], {
     env: {
       ...buildToolEnv(shimsDir),
       SKRIVER_DIARIZATION_PYTHON: shimCommandPath(shimsDir, "fake-python"),
+      SKRIVER_CONFIG_HOME: configHome,
       HF_TOKEN: "hf_test_token"
     }
   });
@@ -419,6 +527,7 @@ test("doctor command reports tool availability via env overrides", async () => {
   const parsed = JSON.parse(stdout.trim());
   assert.equal(parsed.ok, true);
   assert.equal(parsed.environment.huggingFaceTokenSource, "HF_TOKEN");
+  assert.equal(parsed.environment.diarizationSetupReady, false);
   assert.ok(parsed.checks.find((check) => check.id === "ffmpeg").ok);
   assert.ok(parsed.checks.find((check) => check.id === "whisper").ok);
 });

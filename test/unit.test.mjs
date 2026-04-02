@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { __test__ } from "../src/cli.mjs";
+import { incrementPatchVersion } from "../src/lib/versioning.mjs";
 
 const {
   assignSpeakersToSegments,
@@ -32,6 +33,28 @@ test("parseArgs reads diarization options", () => {
   assert.equal(parsed.options.numSpeakers, "2");
   assert.equal(parsed.options.minSpeakers, "2");
   assert.equal(parsed.options.maxSpeakers, "3");
+});
+
+test("parseArgs treats a file path as shorthand for transcribe input", () => {
+  const parsed = parseArgs([
+    "/tmp/meeting.mp4",
+    "--screenshots",
+    "off"
+  ]);
+
+  assert.equal(parsed.command, "transcribe");
+  assert.equal(parsed.options.input, "/tmp/meeting.mp4");
+  assert.equal(parsed.options.screenshots, "off");
+});
+
+test("parseArgs reads root version flags", () => {
+  assert.equal(parseArgs(["--version"]).version, true);
+  assert.equal(parseArgs(["-v"]).version, true);
+});
+
+test("incrementPatchVersion bumps the patch number", () => {
+  assert.equal(incrementPatchVersion("0.1.0"), "0.1.1");
+  assert.equal(incrementPatchVersion("12.9.41"), "12.9.42");
 });
 
 test("assignSpeakersToSegments maps diarization labels by overlap", () => {

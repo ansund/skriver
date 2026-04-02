@@ -16,8 +16,7 @@ import {
 } from "./utils.mjs";
 
 export async function buildTranscriptArtifacts(config, run) {
-  const whisperJsonPath = join(run.runDir, "transcript.json");
-  const whisperJson = JSON.parse(await readFile(whisperJsonPath, "utf8"));
+  const whisperJson = JSON.parse(await readFile(run.whisperJsonPath, "utf8"));
   const glossary = await loadGlossary(config.glossaryPaths);
   const corrections = [];
 
@@ -89,11 +88,11 @@ export async function buildTranscriptArtifacts(config, run) {
       speaker: segment.speaker || null
     }));
 
-  await writeFile(join(run.runDir, "transcript.md"), markdown, "utf8");
-  await writeFile(join(run.runDir, "summary_draft.json"), JSON.stringify(serializeSummaryDraft(summaryDraft), null, 2), "utf8");
-  await writeFile(join(run.runDir, "applied_corrections.json"), JSON.stringify(corrections, null, 2), "utf8");
-  await writeFile(join(run.runDir, "screen_notes.json"), JSON.stringify(screenNotes, null, 2), "utf8");
-  await writeFile(join(run.runDir, "low_confidence_segments.json"), JSON.stringify(lowConfidenceSegments, null, 2), "utf8");
+  await writeFile(run.transcriptPath, markdown, "utf8");
+  await writeFile(run.summaryDraftPath, `${JSON.stringify(serializeSummaryDraft(summaryDraft), null, 2)}\n`, "utf8");
+  await writeFile(run.appliedCorrectionsPath, `${JSON.stringify(corrections, null, 2)}\n`, "utf8");
+  await writeFile(run.screenNotesPath, `${JSON.stringify(screenNotes, null, 2)}\n`, "utf8");
+  await writeFile(run.lowConfidenceSegmentsPath, `${JSON.stringify(lowConfidenceSegments, null, 2)}\n`, "utf8");
 
   return {
     summary: {
@@ -110,13 +109,12 @@ export async function buildTranscriptArtifacts(config, run) {
 }
 
 export async function loadScreenNotes(run) {
-  const ocrPath = join(run.runDir, "screen_ocr.tsv");
-  const exists = await stat(ocrPath).catch(() => null);
+  const exists = await stat(run.screenOcrPath).catch(() => null);
   if (!exists) {
     return [];
   }
 
-  const rows = (await readFile(ocrPath, "utf8"))
+  const rows = (await readFile(run.screenOcrPath, "utf8"))
     .split(/\r?\n/)
     .slice(1)
     .map((line) => line.split("\t"))
@@ -146,7 +144,7 @@ export async function loadScreenNotes(run) {
     notes.push({
       seconds,
       topic,
-      frame: join(run.screensDir, frame),
+      frame: join(run.videoScreenshotsDir, frame),
       visibleText,
       description: describeScreenTopic(topic)
     });
@@ -157,13 +155,12 @@ export async function loadScreenNotes(run) {
 }
 
 export async function loadDiarizationData(run) {
-  const diarizationPath = join(run.runDir, "speaker_diarization.json");
-  const exists = await stat(diarizationPath).catch(() => null);
+  const exists = await stat(run.diarizationPath).catch(() => null);
   if (!exists) {
     return null;
   }
 
-  const parsed = JSON.parse(await readFile(diarizationPath, "utf8"));
+  const parsed = JSON.parse(await readFile(run.diarizationPath, "utf8"));
   if (!Array.isArray(parsed.segments) && !Array.isArray(parsed.exclusiveSegments)) {
     return null;
   }
@@ -446,7 +443,7 @@ export function renderTranscriptMarkdown({
   lines.push(`- Language: \`${language}\``);
   lines.push(`- Media: ${run.metadata.media.hasVideo ? "video" : "audio"}${run.metadata.media.hasVideo ? " with screen capture notes" : ""}`);
   lines.push(`- Diarization: \`${run.metadata.diarization?.status || "skipped"}\``);
-  lines.push(`- Final output: \`transcript.md\``);
+  lines.push(`- Final output: \`${run.transcriptFileName}\``);
   lines.push("");
 
   lines.push("## Summary");
@@ -599,25 +596,24 @@ export function renderTranscriptMarkdown({
   lines.push("");
   lines.push("## Artifacts");
   lines.push("");
-  lines.push("- `manifest.json`");
-  lines.push("- `workflow.md`");
-  lines.push("- `transcript.md`");
-  lines.push("- `transcript.json`");
-  lines.push("- `transcript.txt`");
-  lines.push("- `transcript.srt`");
-  lines.push("- `transcript.tsv`");
-  lines.push("- `notes.txt`");
-  lines.push("- `summary_draft.json`");
+  lines.push(`- \`${run.transcriptFileName}\``);
+  lines.push("- `run.json`");
+  lines.push("- `evidence/whisper/transcript.json`");
+  lines.push("- `evidence/whisper/transcript.txt`");
+  lines.push("- `evidence/whisper/transcript.srt`");
+  lines.push("- `evidence/whisper/transcript.tsv`");
+  lines.push("- `evidence/context/notes.txt`");
+  lines.push("- `evidence/whisper/summary_draft.json`");
   if (contextArtifacts.length > 0) {
-    lines.push("- `context_artifacts.json`");
-    lines.push("- `contexts/`");
+    lines.push("- `evidence/context/context_artifacts.json`");
+    lines.push("- `evidence/context/`");
   }
   if (diarizationData?.segments?.length > 0 || run.metadata.diarization?.status === "completed") {
-    lines.push("- `speaker_diarization.json`");
+    lines.push("- `evidence/diarization/speaker_diarization.json`");
   }
   if (run.metadata.media.hasVideo) {
-    lines.push("- `screen_ocr.tsv`");
-    lines.push("- `screens/`");
+    lines.push("- `evidence/video-ocr/screen_ocr.tsv`");
+    lines.push("- `evidence/video-screenshots/`");
   }
 
   return lines.join("\n");
@@ -641,7 +637,7 @@ export async function buildDryRunTranscript(run, config) {
 - Source: \`${config.inputPath}\`
 - Dry run: \`true\`
 - Diarization: \`${run.metadata.diarization?.status || "skipped"}\`
-- Final output: \`transcript.md\`
+- Final output: \`${run.transcriptFileName}\`
 
 ## Summary
 
@@ -652,8 +648,8 @@ export async function buildDryRunTranscript(run, config) {
 [00:00:00] [Transcriber note] Dry run only. No media processing was executed.
 `;
 
-  await writeFile(join(run.runDir, "transcript.md"), markdown, "utf8");
-  await writeFile(join(run.runDir, "summary_draft.json"), JSON.stringify({
+  await writeFile(run.transcriptPath, markdown, "utf8");
+  await writeFile(run.summaryDraftPath, JSON.stringify({
     overview: ["Auto-generated draft is unavailable in dry-run mode."],
     recurringTopics: [],
     keyInsights: [],

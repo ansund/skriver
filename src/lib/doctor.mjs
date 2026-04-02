@@ -5,6 +5,7 @@ import { LOCAL_DIARIZATION_PYTHON, TOOL_NAME } from "./constants.mjs";
 import { inspectCommand, resolveToolCommand } from "./runtime.mjs";
 import { TOOL_VERSION } from "./package-info.mjs";
 import { locateDiarizationPython } from "./media.mjs";
+import { getUserConfigPath, isDiarizationSetupReady, readUserConfig } from "./state.mjs";
 
 const TOOL_CHECKS = [
   {
@@ -58,6 +59,7 @@ function summarizeProbe(probe) {
 
 export async function runDoctorCommand({ json = false } = {}) {
   const checks = [];
+  const userConfig = await readUserConfig();
 
   for (const tool of TOOL_CHECKS) {
     const command = resolveToolCommand(tool.id);
@@ -98,6 +100,8 @@ export async function runDoctorCommand({ json = false } = {}) {
       platform: process.platform,
       diarizationPython: diarizationPython || null,
       localDiarizationPython: LOCAL_DIARIZATION_PYTHON,
+      userConfigPath: getUserConfigPath(),
+      diarizationSetupReady: isDiarizationSetupReady(userConfig),
       huggingFaceTokenSource: hfTokenSource,
       huggingFaceCachedAuth: cachedHfAuth
     },
@@ -114,6 +118,8 @@ export async function runDoctorCommand({ json = false } = {}) {
   lines.push(`Version: ${TOOL_VERSION}`);
   lines.push(`Node: ${process.version}`);
   lines.push(`Platform: ${process.platform}`);
+  lines.push(`Config: ${getUserConfigPath()}`);
+  lines.push(`Diarization setup ready: ${isDiarizationSetupReady(userConfig) ? "yes" : "no"}`);
   lines.push(`Diarization Python: ${diarizationPython || "not found"}`);
   lines.push(`HF token env: ${hfTokenSource || "not set"}`);
   lines.push(`HF cached auth: ${cachedHfAuth ? "available" : "not detected"}`);

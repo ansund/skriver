@@ -1,4 +1,4 @@
-import { copyFile, readFile, readdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 
@@ -36,7 +36,6 @@ export async function probeMedia(inputPath) {
 }
 
 export async function extractAudio(config, run) {
-  const audioPath = join(run.mediaDir, "audio_16k.wav");
   await runCommand(resolveToolCommand("ffmpeg"), [
     "-y",
     "-i",
@@ -47,20 +46,19 @@ export async function extractAudio(config, run) {
     "1",
     "-ar",
     "16000",
-    audioPath
+    run.audioPath
   ]);
-  run.metadata.audioPath = audioPath;
+  run.metadata.audioPath = run.audioPath;
 }
 
 export async function transcribeAudio(config, run) {
-  const audioPath = join(run.mediaDir, "audio_16k.wav");
   const prompt = await buildInitialPrompt(config.glossaryPaths, run.metadata.notes, run.metadata.contextArtifacts || []);
   const args = [
-    audioPath,
+    run.audioPath,
     "--model",
     config.whisperModel,
     "--output_dir",
-    run.rawDir,
+    run.whisperDir,
     "--output_format",
     "all",
     "--word_timestamps",
@@ -81,15 +79,22 @@ export async function transcribeAudio(config, run) {
 
   await runCommand(resolveToolCommand("whisper"), args);
 
-  for (const extension of ["json", "srt", "txt", "tsv", "vtt"]) {
-    const source = join(run.rawDir, `audio_16k.${extension}`);
-    const target = join(run.runDir, `transcript.${extension}`);
-    await copyFile(source, target).catch(() => undefined);
+  for (const [extension, target] of [
+    ["json", run.whisperJsonPath],
+    ["srt", run.whisperSrtPath],
+    ["txt", run.whisperTextPath],
+    ["tsv", run.whisperTsvPath],
+    ["vtt", run.whisperVttPath]
+  ]) {
+    const source = join(run.whisperDir, `audio_16k.${extension}`);
+    if (source !== target) {
+      await copyFile(source, target).catch(() => undefined);
+    }
   }
 }
 
 export async function runSpeakerDiarization(config, run) {
-  const outputPath = join(run.runDir, "speaker_diarization.json");
+  const outputPath = run.diarizationPath;
 
   if (config.diarization === "off") {
     run.metadata.diarization = {
@@ -103,24 +108,24 @@ export async function runSpeakerDiarization(config, run) {
 
   const python = await locateDiarizationPython();
   if (!python) {
-    const reason = "No diarization Python environment found. Run `pnpm setup-diarization` first.";
-    if (config.diarization === "on") {
-      throw new Error(reason);
-    }
+    const reason = "No diarization Python environment found. Run `skriver setup` first.";
 
     run.metadata.diarization = {
-      status: "skipped",
+      status: config.diarization === "on" ? "failed" : "skipped",
       reason,
       outputPath
     };
     await writeFile(outputPath, JSON.stringify(run.metadata.diarization, null, 2), "utf8");
+    if (config.diarization === "on") {
+      throw new Error(reason);
+    }
     return;
   }
 
   const args = [
     join(TOOL_ROOT, "src", "pyannote_diarize.py"),
     "--audio",
-    join(run.mediaDir, "audio_16k.wav"),
+    run.audioPath,
     "--output",
     outputPath,
     "--model-source",
@@ -203,7 +208,9 @@ async function buildInitialPrompt(glossaryPaths, notes, contextArtifacts) {
 }
 
 export async function extractScreenshots(config, run, durationSeconds) {
-  const framesPattern = join(run.screensDir, "frame_%04d.jpg");
+  const tempPattern = join(run.videoScreenshotsDir, "frame_%04d.jpg");
+  await rm(run.videoScreenshotsDir, { recursive: true, force: true });
+  await mkdir(run.videoScreenshotsDir, { recursive: true });
   await runCommand(resolveToolCommand("ffmpeg"), [
     "-y",
     "-i",
@@ -212,23 +219,32 @@ export async function extractScreenshots(config, run, durationSeconds) {
     `fps=1/${config.screenshotInterval}`,
     "-q:v",
     "2",
-    framesPattern
+    tempPattern
   ]);
   run.metadata.screenshotEstimate = Math.ceil(durationSeconds / config.screenshotInterval);
+
+  const extracted = (await readdir(run.videoScreenshotsDir))
+    .filter((file) => file.endsWith(".jpg"))
+    .sort((a, b) => a.localeCompare(b));
+
+  for (let index = 0; index < extracted.length; index += 1) {
+    const seconds = index * config.screenshotInterval;
+    const renamed = `${formatScreenshotTimestamp(seconds)}.jpg`;
+    await rename(join(run.videoScreenshotsDir, extracted[index]), join(run.videoScreenshotsDir, renamed));
+  }
 }
 
 export async function runVideoOcr(config, run) {
-  const files = (await readdir(run.screensDir))
+  const files = (await readdir(run.videoScreenshotsDir))
     .filter((file) => file.endsWith(".jpg"))
     .sort((a, b) => a.localeCompare(b));
 
   const ocrRows = [["frame", "seconds", "topic", "text"]];
 
-  for (let index = 0; index < files.length; index += 1) {
-    const file = files[index];
-    const seconds = index * run.metadata.screenshotIntervalSeconds;
+  for (const file of files) {
+    const seconds = parseSecondsFromScreenshotName(file);
     const ocr = await runCommand(resolveToolCommand("tesseract"), [
-      join(run.screensDir, file),
+      join(run.videoScreenshotsDir, file),
       "stdout",
       "-l",
       config.language === "sv" ? "swe+eng" : "eng+swe",
@@ -241,5 +257,23 @@ export async function runVideoOcr(config, run) {
     ocrRows.push([file, `${seconds}`, topic, cleaned.replace(/\t/g, " ")]);
   }
 
-  await writeFile(join(run.runDir, "screen_ocr.tsv"), ocrRows.map((row) => row.join("\t")).join("\n"), "utf8");
+  await writeFile(run.screenOcrPath, ocrRows.map((row) => row.join("\t")).join("\n"), "utf8");
+}
+
+function formatScreenshotTimestamp(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = `${Math.floor(seconds / 3600)}`.padStart(2, "0");
+  const minutes = `${Math.floor((seconds % 3600) / 60)}`.padStart(2, "0");
+  const remainder = `${seconds % 60}`.padStart(2, "0");
+  return `${hours}-${minutes}-${remainder}`;
+}
+
+function parseSecondsFromScreenshotName(fileName) {
+  const match = fileName.match(/(\d{2})-(\d{2})-(\d{2})/);
+  if (!match) {
+    return 0;
+  }
+  return Number.parseInt(match[1], 10) * 3600 +
+    Number.parseInt(match[2], 10) * 60 +
+    Number.parseInt(match[3], 10);
 }

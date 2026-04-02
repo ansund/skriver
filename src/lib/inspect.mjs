@@ -1,26 +1,30 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
-import { buildInspectNextSteps, renderNextStepsText } from "./next-steps.mjs";
 
 export async function runInspectCommand(config) {
-  const manifestPath = join(config.runDirectory, "manifest.json");
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  const nextSteps = buildInspectNextSteps(manifest);
+  const runState = JSON.parse(await readFile(config.runStatePath, "utf8"));
+  const stages = runState.stages || {};
 
   const result = {
     ok: true,
     runDirectory: config.runDirectory,
-    manifest: manifestPath,
-    transcript: manifest.artifacts.transcript.path,
-    workflowGuide: manifest.artifacts.workflowGuide.path,
-    diarizationStatus: manifest.summary.diarizationStatus,
-    diarizedSpeakers: manifest.summary.diarizedSpeakerCount,
-    lowConfidenceSegments: manifest.summary.lowConfidenceCount,
-    contextFiles: manifest.summary.contextFileCount,
-    screenNotes: manifest.summary.screenNoteCount,
-    nextSteps,
-    suggestedArtifacts: buildSuggestedArtifacts(manifest)
+    runState: config.runStatePath,
+    transcript: runState.output?.mainTranscript,
+    evidenceDirectory: runState.output?.evidence,
+    diarizationStatus: runState.diarization?.status || stages.diarization?.status || "unknown",
+    diarizedSpeakers: runState.summary?.diarizedSpeakerCount || 0,
+    lowConfidenceSegments: runState.summary?.lowConfidenceCount || 0,
+    contextFiles: runState.summary?.contextFileCount || 0,
+    screenNotes: runState.summary?.screenNoteCount || 0,
+    stageStatuses: Object.fromEntries(Object.entries(stages).map(([name, value]) => [name, value.status])),
+    suggestedArtifacts: [
+      runState.output?.mainTranscript,
+      runState.artifacts?.summaryDraft,
+      runState.artifacts?.lowConfidenceSegments,
+      runState.artifacts?.contextArtifacts,
+      runState.artifacts?.screenOcr,
+      runState.artifacts?.diarization
+    ].filter(Boolean),
+    nextSteps: buildInspectSteps(runState)
   };
 
   if (config.json) {
@@ -33,34 +37,34 @@ export async function runInspectCommand(config) {
       `Inspecting: ${config.runDirectory}`,
       "",
       `Transcript: ${result.transcript}`,
-      `Manifest: ${result.manifest}`,
-      `Workflow guide: ${result.workflowGuide}`,
+      `Run state: ${result.runState}`,
+      `Evidence: ${result.evidenceDirectory}`,
+      `Transcript stage: ${result.stageStatuses.transcript || "unknown"}`,
+      `Screenshot stage: ${result.stageStatuses.screenshots || "unknown"}`,
       `Diarization: ${result.diarizationStatus}`,
-      `Low-confidence segments: ${result.lowConfidenceSegments}`,
       "",
       "Next steps:",
-      renderNextStepsText(nextSteps)
+      ...result.nextSteps.map((step, index) => `${index + 1}. ${step}`)
     ].join("\n")
   };
 }
 
-function buildSuggestedArtifacts(manifest) {
-  const suggestions = [
-    manifest.artifacts.transcript.path,
-    manifest.artifacts.summaryDraft.path,
-    manifest.artifacts.lowConfidenceSegments.path,
-    manifest.artifacts.manifest.path
-  ];
+function buildInspectSteps(runState) {
+  const steps = [];
+  steps.push(`Read ${runState.output?.mainTranscript} first.`);
 
-  if (manifest.artifacts.contextArtifacts.exists) {
-    suggestions.push(manifest.artifacts.contextArtifacts.path);
+  if (runState.summary?.lowConfidenceCount > 0) {
+    steps.push(`Review ${runState.artifacts?.lowConfidenceSegments} for uncertain segments.`);
   }
-  if (manifest.artifacts.speakerDiarization.exists) {
-    suggestions.push(manifest.artifacts.speakerDiarization.path);
+  if (runState.summary?.screenNoteCount > 0) {
+    steps.push(`Use ${runState.artifacts?.screenOcr} and ${runState.artifacts?.screenshots} to repair on-screen terminology.`);
   }
-  if (manifest.artifacts.screenOcr.exists) {
-    suggestions.push(manifest.artifacts.screenOcr.path);
+  if ((runState.diarization?.status || runState.stages?.diarization?.status) === "completed") {
+    steps.push(`Use ${runState.artifacts?.diarization} to review anonymous speaker turns before editing speaker-specific parts.`);
+  }
+  if (runState.summary?.contextFileCount > 0) {
+    steps.push(`Cross-check ${runState.artifacts?.contextArtifacts} against the transcript.`);
   }
 
-  return suggestions;
+  return steps;
 }

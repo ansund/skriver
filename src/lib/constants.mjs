@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const TOOL_ROOT = resolve(__dirname, "..", "..");
-export const DEFAULT_OUTPUT_ROOT = join(TOOL_ROOT, "transcripts");
 export const DEFAULT_GLOSSARY = join(TOOL_ROOT, "config", "default-glossary.txt");
 export const TOOL_NAME = "skriver";
 export const DEFAULT_DIARIZATION_MODEL =

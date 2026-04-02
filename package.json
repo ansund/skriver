@@ -1,6 +1,6 @@
 {
   "name": "skriver",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first transcription CLI that produces agent-ready meeting artifacts.",
   "type": "module",
   "bin": {
@@ -23,6 +23,7 @@
     "inspect": "node src/cli.mjs inspect",
     "glossary": "node src/cli.mjs glossary",
     "cli:help": "node src/cli.mjs --help",
+    "hooks:install": "git config core.hooksPath .githooks",
     "setup-diarization": "./scripts/setup-diarization.sh",
     "test": "node --test"
   },
