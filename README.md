@@ -9,13 +9,20 @@ skriver meeting.mp4
 skriver meeting.m4a
 ```
 
-It writes a sibling folder beside the source file, produces the main transcript first, and then adds evidence that can help a human or agent improve it.
+It writes a sibling folder beside the source file, produces a first-pass transcript quickly, and then adds evidence that helps a human or agent turn that into the final clarified transcript.
+
+Notes are file-based:
+
+- use `--notes-file notes.md` for the recommended path
+- `.md` and `.txt` are accepted
+- notes are treated as higher-trust human clarification than OCR or screenshots
 
 ## What it does
 
 - transcribes audio and video locally
 - creates screenshots and OCR for video
 - stores supporting evidence in a clear `evidence/` tree
+- treats the main transcript as spoken-content-first, not as a final polished interpretation
 - keeps diarization off by default until `skriver setup` verifies it
 - writes a `run.json` state file so partial success and failures are explicit
 
@@ -33,8 +40,24 @@ After global install:
 
 ```bash
 skriver setup
-skriver /absolute/path/to/meeting.mp4
+skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md
 ```
+
+You can add a custom glossary either per run with `--glossary /path/to/file.txt` or persist it in `~/.skriver/config.json`.
+
+## Product Model
+
+Skriver is intentionally split into two layers:
+
+1. `skriver` creates the first-pass transcript and evidence bundle.
+2. A human or agent reviews the evidence and improves the transcript where needed.
+
+That means the main transcript should stay conservative:
+
+- spoken words belong in the transcript
+- notes can clarify and guide interpretation
+- screenshots, OCR, and diarization are evidence, not automatic truth
+- the final high-quality transcript usually comes from reviewing `run.json` and the `evidence/` folder
 
 ## Install
 
@@ -101,13 +124,33 @@ The machine-readable state file is:
 
 - `meeting-skriver/run.json`
 
+## Review Workflow
+
+The intended review order is:
+
+1. Read `run.json`
+2. Read `meeting-transcript.md`
+3. Review `evidence/whisper/low_confidence_segments.json`
+4. Review `evidence/context/notes.json` and the original notes file
+5. Review `evidence/context/context_artifacts.json` if extra context was provided
+6. For video, inspect `evidence/video-screenshots/`, `evidence/video-ocr/screen_ocr.tsv`, and `evidence/video-ocr/screen_notes.json`
+7. If diarization completed, review `evidence/diarization/speaker_diarization.json`
+
+The key handoff is:
+
+- Skriver gives you a trustworthy first pass plus evidence.
+- The human or agent should use that evidence to augment, clarify, and carefully improve the final transcript.
+- OCR and screenshots should not be merged blindly into the transcript.
+
 ## Commands
 
-- `skriver <file>`: transcribe an audio or video file
+- `skriver <file>`: create a first-pass transcript plus evidence for review
 - `skriver transcribe --input <file>`: explicit form of the same operation
+- `--notes-file <file.md|file.txt>`: add human notes to the evidence bundle, with `.md` recommended
+- `--glossary <file.txt>`: layer a project glossary on top of the default glossary for the current run
 - `skriver setup`: prepare and verify diarization
 - `skriver doctor`: check local dependencies and setup state
-- `skriver inspect <run-dir-or-run.json>`: inspect a completed run
+- `skriver inspect <run-dir-or-run.json>`: inspect a completed run and print the next evidence-review steps
 - `skriver glossary`: inspect or apply glossary corrections
 
 ## Development
@@ -130,7 +173,10 @@ Current automated coverage includes:
 - [AGENTS.md](./AGENTS.md)
 - [docs/install.md](./docs/install.md)
 - [docs/architecture.md](./docs/architecture.md)
+- [docs/workflows/agent-augmented-transcript.md](./docs/workflows/agent-augmented-transcript.md)
+- [docs/workflows/human-review.md](./docs/workflows/human-review.md)
 - [current-state.md](./current-state.md)
+- [repo-cleanup.md](./repo-cleanup.md)
 - [ship-mvp.md](./ship-mvp.md)
 
 ## License

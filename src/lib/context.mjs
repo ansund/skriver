@@ -15,22 +15,16 @@ import {
 } from "./utils.mjs";
 
 export async function saveRunInputs(run, config) {
-  const combinedNotes = await collectNotes(config.notesFile, config.notes);
+  const combinedNotes = await collectNotes(config.notesFile);
   await writeFile(run.notesTextPath, combinedNotes.rawText, "utf8");
   await writeFile(run.notesJsonPath, `${JSON.stringify(combinedNotes, null, 2)}\n`, "utf8");
   run.metadata.notes = combinedNotes;
 }
 
-export async function collectNotes(notesFile, inlineNotes) {
-  const chunks = [];
-  if (notesFile) {
-    chunks.push(await readFile(notesFile, "utf8"));
-  }
-  for (const note of inlineNotes) {
-    chunks.push(note);
-  }
-
-  const rawText = chunks.join("\n").trim();
+export async function collectNotes(notesFile) {
+  const rawText = notesFile
+    ? (await readFile(notesFile, "utf8")).trim()
+    : "";
   const timedNotes = [];
   const untimedNotes = [];
 

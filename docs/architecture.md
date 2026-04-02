@@ -9,6 +9,7 @@
 - progressive deliverables instead of one opaque batch job
 - fail-soft stages with a persistent run state
 - optional advanced features instead of hidden magic
+- evidence-first augmentation instead of automatic over-interpretation
 
 ## Module map
 
@@ -45,9 +46,9 @@
 4. Probe media.
 5. Extract extra context files.
 6. Extract audio and transcribe it.
-7. Write the main transcript immediately.
+7. Write the main transcript immediately as a conservative spoken-content-first draft.
 8. Capture screenshots and OCR for video.
-9. Rerender the transcript with screen evidence when available.
+9. Save screen evidence as artifacts without automatically merging OCR into the transcript body.
 10. Run diarization if enabled and available.
 11. Rerender the transcript with anonymous speaker turns when available.
 12. Update `run.json` after each stage.
@@ -58,13 +59,19 @@ The primary deliverable is `<filename>-transcript.md`.
 
 The primary machine-readable index is `run.json`.
 
+The transcript is intentionally not the final reasoning layer.
+The expected workflow is that a human or agent reviews the evidence folder and then augments or clarifies the final transcript carefully.
+
 Important supporting artifacts:
 
 - `evidence/whisper/summary_draft.json`
 - `evidence/whisper/low_confidence_segments.json`
+- `evidence/context/notes.json`
 - `evidence/diarization/speaker_diarization.json`
 - `evidence/context/context_artifacts.json`
 - `evidence/video-ocr/screen_ocr.tsv`
+- `evidence/video-ocr/screen_notes.json`
+- `evidence/video-screenshots/`
 
 ## Compatibility notes
 

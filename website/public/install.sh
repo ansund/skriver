@@ -24,4 +24,6 @@ echo
 echo "Skriver is installed."
 echo "Next:"
 echo "  skriver doctor"
-echo "  skriver transcribe --help"
+echo "  skriver setup"
+echo "  skriver --help"
+echo "  skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md"

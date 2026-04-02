@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { __test__ } from "../src/cli.mjs";
+import { buildTranscribeConfig } from "../src/lib/args.mjs";
 import { __test__ as setupTest } from "../src/lib/setup.mjs";
 import { incrementPatchVersion } from "../src/lib/versioning.mjs";
 
@@ -59,9 +63,60 @@ test("parseArgs reads verbose flags for transcribe and setup", () => {
   assert.equal(parseArgs(["setup", "--verbose"]).options.verbose, true);
 });
 
+test("parseArgs no longer accepts inline note text", () => {
+  assert.throws(() => parseArgs(["/tmp/meeting.mp4", "--note", "hello"]), /Unknown argument: --note/);
+});
+
 test("incrementPatchVersion bumps the patch number", () => {
   assert.equal(incrementPatchVersion("0.1.0"), "0.1.1");
   assert.equal(incrementPatchVersion("12.9.41"), "12.9.42");
+});
+
+test("buildTranscribeConfig only accepts .md or .txt notes files", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-notes-"));
+  const inputPath = path.join(tempRoot, "meeting.mp4");
+  const notesPath = path.join(tempRoot, "notes.rtf");
+  await writeFile(inputPath, "video");
+  await writeFile(notesPath, "notes");
+
+  await assert.rejects(
+    buildTranscribeConfig({
+      input: inputPath,
+      notesFile: notesPath
+    }),
+    /Notes file must be \.md or \.txt/
+  );
+});
+
+test("buildTranscribeConfig loads glossary paths from user config", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-glossary-config-"));
+  const inputPath = path.join(tempRoot, "meeting.mp4");
+  const glossaryPath = path.join(tempRoot, "team-glossary.txt");
+  const configHome = path.join(tempRoot, "config");
+  await writeFile(inputPath, "video");
+  await writeFile(glossaryPath, "Ekobanken | eco banken\n");
+  await mkdir(configHome, { recursive: true });
+  await writeFile(path.join(configHome, "config.json"), JSON.stringify({
+    defaults: {
+      glossaryPaths: [glossaryPath]
+    }
+  }, null, 2));
+
+  const previousConfigHome = process.env.SKRIVER_CONFIG_HOME;
+  process.env.SKRIVER_CONFIG_HOME = configHome;
+
+  try {
+    const config = await buildTranscribeConfig({
+      input: inputPath
+    });
+    assert.ok(config.glossaryPaths.includes(glossaryPath));
+  } finally {
+    if (previousConfigHome === undefined) {
+      delete process.env.SKRIVER_CONFIG_HOME;
+    } else {
+      process.env.SKRIVER_CONFIG_HOME = previousConfigHome;
+    }
+  }
 });
 
 test("summarizeProbe prefers the actionable error line over traceback noise", () => {

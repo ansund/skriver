@@ -19,7 +19,19 @@ Helpful extras:
 ## Global install
 
 ```bash
+curl -fsSL https://skriver.ansund.com/install.sh | bash
+```
+
+Or install directly from GitHub:
+
+```bash
 npm install -g github:ansund/skriver
+```
+
+Then verify:
+
+```bash
+skriver --version
 skriver --help
 ```
 
@@ -49,5 +61,5 @@ If the chosen diarization backend still needs model access or authentication, `s
 ```bash
 skriver doctor
 skriver setup
-skriver /absolute/path/to/meeting.mp4
+skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md
 ```

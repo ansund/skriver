@@ -6,20 +6,24 @@ Skriver is a local-first transcription CLI for agents and humans.
 
 Skriver turns meeting audio or video into an evidence bundle:
 
-- transcript.md
-- manifest.json
-- workflow.md
-- summary_draft.json
-- low_confidence_segments.json
-- speaker_diarization.json
-- context_artifacts.json
-- screen_ocr.tsv for video
+- run.json
+- <filename>-transcript.md
+- evidence/whisper/summary_draft.json
+- evidence/whisper/low_confidence_segments.json
+- evidence/context/notes.json
+- evidence/context/context_artifacts.json
+- evidence/diarization/speaker_diarization.json
+- evidence/video-ocr/screen_ocr.tsv for video
+- evidence/video-screenshots/ for video
 
 ## What it does
 
 - transcribes audio
 - transcribes video
 - extracts OCR from screenshots
+- accepts human notes from `.md` or `.txt` files
+- accepts custom glossary files with `--glossary`
+- can load default glossary files from `~/.skriver/config.json`
 - merges extra context files
 - applies glossary corrections
 - flags uncertain transcript segments
@@ -33,14 +37,20 @@ Skriver turns meeting audio or video into an evidence bundle:
 
 ## Recommended agent workflow
 
-1. Run `skriver transcribe ...`
-2. Read `manifest.json`
-3. Read `transcript.md`
-4. Review `summary_draft.json`
-5. Review `low_confidence_segments.json`
-6. Review `context_artifacts.json`
-7. Review `speaker_diarization.json` if present
-8. Review `screen_ocr.tsv` and `screens/` for video
+1. Run `skriver file.mp4` or `skriver file.m4a`
+2. Read `run.json`
+3. Read `<filename>-transcript.md`
+4. Review `evidence/whisper/summary_draft.json`
+5. Review `evidence/whisper/low_confidence_segments.json`
+6. Review `evidence/context/notes.json` and treat notes as high-trust clarification
+7. Review `evidence/context/context_artifacts.json`
+8. Review `evidence/diarization/speaker_diarization.json` if present
+9. Review `evidence/video-ocr/screen_ocr.tsv`, `evidence/video-ocr/screen_notes.json`, and `evidence/video-screenshots/` for video
+
+Important rule:
+
+- Do not merge OCR into the transcript automatically.
+- Use screenshots, OCR, and diarization as evidence to improve the final transcript carefully.
 
 ## Install
 

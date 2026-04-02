@@ -3,7 +3,11 @@ import { stat } from "node:fs/promises";
 import os from "node:os";
 
 import { DEFAULT_GLOSSARY, TOOL_NAME } from "./constants.mjs";
-import { getDefaultDiarizationMode, readUserConfig } from "./state.mjs";
+import {
+  getConfiguredGlossaryPaths,
+  getDefaultDiarizationMode,
+  readUserConfig
+} from "./state.mjs";
 import { parseOptionalPositiveInteger } from "./utils.mjs";
 
 export function parseArgs(argv) {
@@ -42,7 +46,7 @@ export function parseArgs(argv) {
 }
 
 function parseTranscribeArgs(command, argv) {
-  const options = { notes: [], contexts: [], json: false, verbose: false };
+  const options = { contexts: [], json: false, verbose: false };
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -82,10 +86,6 @@ function parseTranscribeArgs(command, argv) {
         break;
       case "--notes-file":
         options.notesFile = next;
-        i += 1;
-        break;
-      case "--note":
-        options.notes.push(next);
         i += 1;
         break;
       case "--context":
@@ -281,10 +281,10 @@ Usage:
   skriver <audio-or-video-file> [options]
 
 Commands:
-  transcribe   Transcribe audio or video into agent-ready artifacts
+  transcribe   Create a first-pass transcript plus evidence for review
   setup        Prepare and verify diarization so it can run by default
   doctor       Check local dependencies and optional diarization setup
-  inspect      Review a run directory and print the next workflow steps
+  inspect      Review a run directory and print the next evidence-review steps
   glossary     List glossary entries or check text against glossary rules
 
 Run \`skriver help <command>\` for command-specific help.
@@ -297,14 +297,16 @@ function renderTranscribeHelp() {
 Usage:
   skriver transcribe --input /absolute/path/to/file
 
+Skriver writes a conservative first-pass transcript and an evidence bundle.
+The final clarified transcript usually comes from a human or agent reviewing that evidence.
+
 Options:
   --input PATH                Absolute or relative path to audio/video file
   --title TEXT                Folder/title label for the run
   --language auto|sv|en       Spoken language hint for Whisper
-  --notes-file PATH           Text file with user notes
-  --note TEXT                 Inline note, repeatable
+  --notes-file PATH           Notes file (.md recommended, .md or .txt accepted)
   --context PATH              Extra context file or directory, repeatable
-  --glossary PATH             Extra glossary file
+  --glossary PATH             Extra glossary file (.txt), layered on top of defaults
   --screenshots auto|on|off   Enable screenshot extraction for videos
   --screenshot-interval N     Seconds between screenshots for videos
   --whisper-model NAME        Whisper model name (default: turbo)
@@ -353,6 +355,8 @@ function renderInspectHelp() {
 Usage:
   skriver inspect /absolute/path/to/run-dir-or-run.json [--json]
 
+Inspect reads run.json and points the reviewer toward the next evidence files to check.
+
 Options:
   --verbose  Stream detailed command output
   --json   Print machine-readable JSON instead of text
@@ -367,8 +371,11 @@ Usage:
   skriver glossary list [--glossary PATH] [--json]
   skriver glossary check (--text TEXT | --file PATH) [--glossary PATH] [--json]
 
+Skriver always loads the built-in glossary first, then any glossary files from config.json,
+then any extra --glossary file passed on the command.
+
 Options:
-  --glossary PATH   Extra glossary file to layer on top of the default glossary
+  --glossary PATH   Extra glossary file to layer on top of the built-in and configured defaults
   --text TEXT       Text to check with glossary corrections
   --file PATH       File to check with glossary corrections
   --verbose         Stream detailed command output
@@ -438,17 +445,14 @@ export async function buildTranscribeConfig(options) {
     if (!noteStats || !noteStats.isFile()) {
       throw new Error(`Notes file not found: ${notesFile}`);
     }
+
+    const notesExtension = extname(notesFile).toLowerCase();
+    if (![".md", ".txt"].includes(notesExtension)) {
+      throw new Error(`Notes file must be .md or .txt: ${notesFile}`);
+    }
   }
 
-  const glossaryPaths = [DEFAULT_GLOSSARY];
-  if (options.glossary) {
-    const glossaryPath = resolve(options.glossary);
-    const glossaryStats = await stat(glossaryPath).catch(() => null);
-    if (!glossaryStats || !glossaryStats.isFile()) {
-      throw new Error(`Glossary file not found: ${glossaryPath}`);
-    }
-    glossaryPaths.push(glossaryPath);
-  }
+  const glossaryPaths = await resolveGlossaryPaths(userConfig, options.glossary);
 
   const contextInputs = [];
   for (const contextPath of options.contexts || []) {
@@ -464,7 +468,6 @@ export async function buildTranscribeConfig(options) {
     inputPath,
     title,
     language,
-    notes: options.notes || [],
     notesFile,
     glossaryPaths,
     contextInputs,
@@ -509,15 +512,8 @@ export async function buildInspectConfig(options) {
 }
 
 export async function buildGlossaryConfig(options) {
-  const glossaryPaths = [DEFAULT_GLOSSARY];
-  if (options.glossary) {
-    const glossaryPath = resolve(options.glossary);
-    const glossaryStats = await stat(glossaryPath).catch(() => null);
-    if (!glossaryStats || !glossaryStats.isFile()) {
-      throw new Error(`Glossary file not found: ${glossaryPath}`);
-    }
-    glossaryPaths.push(glossaryPath);
-  }
+  const userConfig = await readUserConfig();
+  const glossaryPaths = await resolveGlossaryPaths(userConfig, options.glossary);
 
   const action = (options.action || "list").toLowerCase();
   if (!["list", "check"].includes(action)) {
@@ -551,4 +547,30 @@ export async function buildGlossaryConfig(options) {
   }
 
   return config;
+}
+
+async function resolveGlossaryPaths(userConfig, glossaryOption) {
+  const configuredPaths = getConfiguredGlossaryPaths(userConfig);
+  const resolvedConfiguredPaths = [];
+
+  for (const configuredPath of configuredPaths) {
+    const resolvedPath = resolve(configuredPath);
+    const glossaryStats = await stat(resolvedPath).catch(() => null);
+    if (!glossaryStats || !glossaryStats.isFile()) {
+      throw new Error(`Configured glossary file not found: ${resolvedPath}`);
+    }
+    resolvedConfiguredPaths.push(resolvedPath);
+  }
+
+  const glossaryPaths = [DEFAULT_GLOSSARY, ...resolvedConfiguredPaths];
+  if (glossaryOption) {
+    const glossaryPath = resolve(glossaryOption);
+    const glossaryStats = await stat(glossaryPath).catch(() => null);
+    if (!glossaryStats || !glossaryStats.isFile()) {
+      throw new Error(`Glossary file not found: ${glossaryPath}`);
+    }
+    glossaryPaths.push(glossaryPath);
+  }
+
+  return [...new Set(glossaryPaths)];
 }

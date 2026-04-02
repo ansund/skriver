@@ -292,7 +292,7 @@ test("mocked full e2e run merges transcript, manifest, context, screens, glossar
   const shimsDir = path.join(tempRoot, "shims");
   const outputRoot = path.join(tempRoot, "out");
   const inputPath = path.join(tempRoot, "meeting.mp4");
-  const notesPath = path.join(tempRoot, "notes.txt");
+  const notesPath = path.join(tempRoot, "notes.md");
   const contextPath = path.join(tempRoot, "05-30-context.txt");
 
   await writeCommonShims(shimsDir);
@@ -384,6 +384,23 @@ test("mocked full e2e run merges transcript, manifest, context, screens, glossar
   await stat(runState.artifacts.screenOcr);
   await stat(runState.artifacts.contextArtifacts);
   assert.equal(path.basename(runDir), "meeting-skriver");
+});
+
+test("cli rejects unsupported notes file extensions", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-notes-ext-"));
+  const inputPath = path.join(tempRoot, "meeting.mp4");
+  const notesPath = path.join(tempRoot, "notes.rtf");
+  await writeFile(inputPath, "placeholder video");
+  await writeFile(notesPath, "rich text notes");
+
+  await assert.rejects(
+    runCliArgs([
+      inputPath,
+      "--notes-file",
+      notesPath
+    ]),
+    /Notes file must be \.md or \.txt/
+  );
 });
 
 test("inspect command summarizes a completed run", async () => {

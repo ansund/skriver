@@ -1,53 +1,59 @@
 # AGENTS.md — skriver
 
-Use `skriver` when the user shares a meeting audio/video file and wants a transcript or an artifact bundle another agent can reason over.
+Use `skriver` when the user shares a meeting audio/video file and wants a transcript or a mmeting summary an artifact bundle another agent can reason over.
+
+The important product idea is:
+
+- `skriver` creates the first-pass transcript
+- `skriver` also creates an evidence bundle
+- the reviewing agent has an important job in turning that into the final clarified transcript
 
 ## Default workflow
 
 1. Run `skriver doctor` if the environment is uncertain.
-2. Put pasted user notes into `--notes-file` when possible.
+2. Put user notes into `--notes-file`, preferably as a `.md` file. Only `.md` and `.txt` notes files are supported.
 3. Add extra context with repeatable `--context` arguments when the user also shared slides, emails, PDFs, images, or notes.
 4. If the spoken language is obvious, set `--language sv` or `--language en` instead of `auto`.
 5. Use `--diarization on` only when the local pyannote environment is ready. If the participant count is known, also pass `--num-speakers N`.
 6. Keep screenshots enabled for videos unless the user explicitly says not to.
 7. Lower `--screenshot-interval` from `20` to `10` for UI-heavy demos or fast screen changes.
-8. After the run, read `manifest.json` first, then `transcript.md`, then the supporting artifacts called out in `workflow.md`.
+8. After the run, read `run.json` first, then the main transcript, then the supporting evidence artifacts.
 
 ## Command
 
 ```bash
-pnpm transcribe \
-  --input "/absolute/path/to/file.mp4" \
+skriver "/absolute/path/to/file.mp4" \
   --language sv \
   --diarization on \
   --num-speakers 2 \
-  --title "Short descriptive title" \
+  --notes-file "/absolute/path/to/notes.md" \
   --context "/absolute/path/to/slides.pdf" \
   --context "/absolute/path/to/followup-email.eml"
 ```
 
 ## Important behavior
 
-- Each run creates a fresh folder under `transcripts/`. Do not overwrite older runs.
-- `manifest.json` is the main machine-readable index for the run.
-- `workflow.md` is the short human/agent checklist for what to review next.
+- Each run creates a sibling `<filename>-skriver/` folder beside the source media.
+- `run.json` is the main machine-readable index for the run.
 - The transcript should preserve the spoken language. Do not translate unless the user explicitly asks for translation.
-- The primary deliverable is still `transcript.md`.
+- The primary deliverable is `<filename>-transcript.md`.
 - `summary_draft.json` is a helper artifact for agents, not a substitute for reasoning.
-- Screen-share context is added in bracketed notes. If OCR clearly shows relevant UI text, keep that text in the transcript.
+- Notes from `--notes-file` should be treated as higher-trust human clarification than OCR.
+- Screenshots and OCR are evidence. Do not merge them into the final transcript automatically. Review them and only add what clearly clarifies what was said.
 - Technical/company terms are often mistranscribed. Use `pnpm glossary check` when you want to test candidate corrections before rerunning.
 - Only trust speaker labels when diarization completed. Do not add speaker names or `Speaker 1` / `Speaker 2` manually without real diarization or independent verification.
+- The reviewing agent is responsible for using the evidence folder to augment and clarify the transcript into a better final file.
 
 ## Post-run review order
 
-1. `manifest.json`
-2. `transcript.md`
-3. `summary_draft.json`
-4. `low_confidence_segments.json`
-5. `context_artifacts.json`
-6. `speaker_diarization.json` if present
-7. `screen_ocr.tsv` and `screens/` for video runs
-8. `workflow.md`
+1. `run.json`
+2. `<filename>-transcript.md`
+3. `evidence/whisper/summary_draft.json`
+4. `evidence/whisper/low_confidence_segments.json`
+5. `evidence/context/notes.json`
+6. `evidence/context/context_artifacts.json` if present
+7. `evidence/diarization/speaker_diarization.json` if present
+8. `evidence/video-ocr/screen_ocr.tsv`, `evidence/video-ocr/screen_notes.json`, and `evidence/video-screenshots/` for video runs
 
 ## When to rerun
 
@@ -67,5 +73,6 @@ Useful adjustments:
 - `--screenshot-interval 10`
 - `--whisper-model medium`
 - `--context /absolute/path/to/context-dir`
+- `--notes-file /absolute/path/to/notes.md`
 - `--glossary /absolute/path/to/custom-glossary.txt`
 - `skriver inspect "/absolute/path/to/run-dir" --json`

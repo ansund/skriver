@@ -33,14 +33,14 @@ const quickstarts = [
 ];
 
 const artifactRows = [
-  ["transcript.md", "Readable transcript with timestamps, notes, corrections, and speaker labels when diarization succeeds."],
-  ["manifest.json", "Machine-readable index that tells agents where every useful artifact lives."],
-  ["workflow.md", "Short post-run checklist for agents and humans."],
+  ["run.json", "Machine-readable run state that tells agents which stages completed and where the evidence lives."],
+  ["<filename>-transcript.md", "Readable first-pass transcript that stays focused on spoken content."],
   ["summary_draft.json", "Deterministic summary candidates, actions, and open questions."],
-  ["low_confidence_segments.json", "Segments worth reviewing before publishing a final summary."],
+  ["low_confidence_segments.json", "Segments worth reviewing before publishing a final transcript or summary."],
+  ["notes.json", "Parsed human notes, treated as higher-trust clarification than OCR."],
   ["speaker_diarization.json", "Anonymous diarization segments when local speaker detection completes."],
   ["context_artifacts.json", "Extracted notes from slides, PDFs, docs, emails, and image inputs."],
-  ["screen_ocr.tsv", "OCR text from video screenshots so agents can repair context-heavy transcripts."]
+  ["screen_ocr.tsv + screenshots", "Video evidence for agents to inspect before deciding what belongs in the final transcript."]
 ];
 
 const faq = [
@@ -54,7 +54,11 @@ const faq = [
   },
   {
     question: "What happens after install?",
-    answer: "Run `skriver doctor`, then `skriver transcribe ...`. Every run produces a clean bundle with `manifest.json`, `workflow.md`, and the transcript artifacts your agent needs."
+    answer: "Run `skriver doctor`, then `skriver file.mp4`. Every run produces a clean bundle with `run.json`, the main transcript, and the evidence artifacts your agent needs to improve the final output."
+  },
+  {
+    question: "Can I teach Skriver my own terms?",
+    answer: "Yes. Use `--glossary /path/to/file.txt` for a run-specific glossary, or add `defaults.glossaryPaths` in `~/.skriver/config.json` to load a glossary automatically on every run."
   }
 ];
 ---
@@ -84,7 +88,7 @@ const faq = [
         <h1>Skriver turns meetings into evidence your agent can actually use.</h1>
         <p class="lede">
           Audio in. Video in. Notes in. Out comes a tidy run directory with a readable transcript,
-          OCR context, diarization artifacts, confidence flags, and a manifest that tells your
+          OCR context, diarization artifacts, confidence flags, and a run state file that tells your
           agent where to look next.
         </p>
         <div class="hero-actions">
@@ -106,16 +110,16 @@ const faq = [
           <span class="terminal-label">agent-ready output</span>
         </div>
         <pre class="terminal-body"><code># fresh run directory
-transcripts/2026-03-26T10-11-12_board-sync/
+board-sync-skriver/
 
-manifest.json
-workflow.md
-transcript.md
-summary_draft.json
-low_confidence_segments.json
-speaker_diarization.json
-context_artifacts.json
-screen_ocr.tsv</code></pre>
+run.json
+board-sync-transcript.md
+evidence/
+  whisper/
+  context/
+  diarization/
+  video-ocr/
+  video-screenshots/</code></pre>
       </aside>
     </section>
 
@@ -175,7 +179,8 @@ screen_ocr.tsv</code></pre>
 
         <p class="quickstart-footnote">
           Honest version: the one-liner gets the CLI onto your machine. Then <code>skriver doctor</code>
-          tells you which local media tools are still missing for full transcription.
+          tells you which local media tools are still missing for full transcription. After that,
+          the real happy path is <code>skriver setup</code> followed by <code>skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md</code>.
         </p>
       </div>
     </section>
@@ -191,19 +196,20 @@ screen_ocr.tsv</code></pre>
         </div>
         <p>
           Skriver doesn’t pretend the transcript is the end of the workflow. It produces the
-          follow-up bundle your agent needs: a transcript that stands on its own, a manifest that
-          points to everything else, and a workflow guide that explains the review path.
+          follow-up bundle your agent needs: a conservative first-pass transcript, a run state
+          file that points to everything else, and the evidence artifacts needed to improve the
+          final transcript carefully.
         </p>
       </div>
 
       <div class="feature-stack">
         <article class="feature-card">
-          <h3><code>manifest.json</code></h3>
+          <h3><code>run.json</code></h3>
           <p>One machine-readable index for agents. No guessing. No scraping filenames. No “where did the OCR go?” energy.</p>
         </article>
         <article class="feature-card">
-          <h3><code>workflow.md</code></h3>
-          <p>A short checklist for humans and agents so the post-processing workflow stays explicit and repeatable.</p>
+          <h3><code>evidence/</code></h3>
+          <p>The important second step. Agents should inspect notes, screenshots, OCR, diarization, and low-confidence segments before polishing the final transcript.</p>
         </article>
         <article class="feature-card">
           <h3><code>llms.txt</code></h3>
