@@ -29,7 +29,7 @@ No runtime environment variables are required for the current static website.
 
 Push-to-deploy is driven from GitHub Actions, not the Coolify GitHub App flow.
 
-- Workflow: [.github/workflows/deploy-website.yml](/Users/viktoransund/code/impact/.github/workflows/deploy-website.yml)
+- Workflow: `.github/workflows/deploy-website.yml`
 - Trigger: every push to `main`
 - Mechanism: call `GET /api/v1/deploy?uuid=<website-app-uuid>` on the Coolify API
 
