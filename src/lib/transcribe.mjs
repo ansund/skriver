@@ -29,6 +29,14 @@ export async function runTranscribeCommand(config, reporter = null) {
   await saveSourceMedia(run, config.inputPath);
   await writeRunState(run);
 
+  reporter?.info([
+    "Skriver workflow",
+    `  output dir: ${run.runDir}`,
+    `  open first when done: ${run.reviewReadmePath}`,
+    `  second pass when done: skriver review "${run.runDir}"`,
+    "  notes are higher-trust than OCR"
+  ].join("\n"));
+
   const media = await probeMedia(config.inputPath);
   run.metadata.media = media;
   await writeRunState(run);
@@ -189,6 +197,7 @@ export async function runTranscribeCommand(config, reporter = null) {
   }
 
   reporter?.info(`Run state saved to ${run.runStatePath}`);
+  reporter?.info(`Leave feedback with: skriver feedback "What was confusing, slow, or missing?"`);
   return buildResult(run, run.metadata.summary);
 }
 

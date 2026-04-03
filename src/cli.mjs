@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  buildFeedbackConfig,
   buildGlossaryConfig,
   buildInspectConfig,
   buildTranscribeConfig,
@@ -13,6 +14,7 @@ import {
 } from "./lib/args.mjs";
 import { TOOL_NAME } from "./lib/constants.mjs";
 import { runDoctorCommand } from "./lib/doctor.mjs";
+import { runFeedbackCommand } from "./lib/feedback.mjs";
 import { runGlossaryCommand } from "./lib/glossary-command.mjs";
 import { runInspectCommand } from "./lib/inspect.mjs";
 import { TOOL_VERSION } from "./lib/package-info.mjs";
@@ -83,6 +85,12 @@ async function main() {
         process.stdout.write(config.json ? `${JSON.stringify(result, null, 2)}\n` : `${result.text}\n`);
         return;
       }
+      case "feedback": {
+        const config = await buildFeedbackConfig(parsed.options);
+        const result = await runFeedbackCommand(config);
+        process.stdout.write(config.json ? `${JSON.stringify(result, null, 2)}\n` : `${result.text}\n`);
+        return;
+      }
       default:
         printHelp();
         process.exit(1);
@@ -107,6 +115,7 @@ function renderTranscribeResultText(result) {
   lines.push(`Diarization: ${result.diarizationStatus}`);
   lines.push("");
   lines.push(`Next step: ${result.nextStepCommand}`);
+  lines.push(`Leave feedback: skriver feedback "What was confusing, slow, or missing?"`);
   return lines.join("\n");
 }
 

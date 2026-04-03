@@ -37,6 +37,8 @@ export function parseArgs(argv) {
       return parseInspectArgs(command, rest);
     case "review":
       return parseInspectArgs(command, rest);
+    case "feedback":
+      return parseFeedbackArgs(command, rest);
     case "glossary":
       return parseGlossaryArgs(command, rest);
     default:
@@ -259,6 +261,42 @@ function parseGlossaryArgs(command, argv) {
   return { help: false, command, options };
 }
 
+function parseFeedbackArgs(command, argv) {
+  const options = { action: "add", json: false, verbose: false };
+  let messageParts = [];
+
+  if (argv[0] === "list") {
+    options.action = "url";
+    argv = argv.slice(1);
+  } else if (argv[0] === "url") {
+    options.action = "url";
+    argv = argv.slice(1);
+  } else if (argv[0] === "add") {
+    argv = argv.slice(1);
+  }
+
+  for (const arg of argv) {
+    if (arg === "--help" || arg === "-h") {
+      return { help: true, command, options };
+    }
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+    if (arg === "--verbose") {
+      options.verbose = true;
+      continue;
+    }
+    messageParts.push(arg);
+  }
+
+  if (options.action === "add" || options.action === "url") {
+    options.message = messageParts.join(" ").trim();
+  }
+
+  return { help: false, command, options };
+}
+
 export function renderHelp(command = null) {
   return command === "transcribe"
     ? renderTranscribeHelp()
@@ -270,6 +308,8 @@ export function renderHelp(command = null) {
           ? renderInspectHelp()
           : command === "review"
             ? renderReviewHelp()
+            : command === "feedback"
+              ? renderFeedbackHelp()
           : command === "glossary"
             ? renderGlossaryHelp()
             : command === "agents"
@@ -294,12 +334,14 @@ Commands:
   doctor       Check local dependencies and optional diarization setup
   inspect      Review a run directory and print the next evidence-review steps
   review       Friendly alias for inspect, designed for the second pass
+  feedback     Send product feedback to the maintainer through GitHub
   glossary     List glossary entries or check text against glossary rules
 
 Quick start:
   skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md
   open /absolute/path/to/meeting-skriver/README.md
   skriver review /absolute/path/to/meeting-skriver
+  skriver feedback "What was confusing, slow, or missing?"
 
 Agent docs:
   skriver help agents
@@ -323,6 +365,7 @@ Quickstart:
   2. open meeting-skriver/README.md
   3. read meeting-skriver/meeting-transcript.md
   4. run skriver review /absolute/path/to/meeting-skriver
+  5. leave feedback with skriver feedback "What was confusing, slow, or missing?"
 
 Options:
   --input PATH                Absolute or relative path to audio/video file
@@ -349,6 +392,7 @@ Examples:
   skriver meeting.mp4 --notes-file ./notes.md
   skriver meeting.mp4 --notes-file ./notes.md --glossary ./team-glossary.txt
   skriver review /absolute/path/to/meeting-skriver
+  skriver feedback "The second-pass flow is much clearer now"
   skriver help agents
 `;
 }
@@ -405,6 +449,23 @@ It reads run.json, points you to the right evidence files, and tells the agent w
 
 Options:
   --verbose  Stream detailed command output
+  --json   Print machine-readable JSON instead of text
+  --help   Show this help
+`;
+}
+
+function renderFeedbackHelp() {
+  return `${TOOL_NAME} feedback
+
+Usage:
+  skriver feedback "What was confusing, slow, or missing?"
+  skriver feedback url "What was confusing, slow, or missing?" [--json]
+
+Feedback is sent to the maintainer through GitHub Issues.
+If gh is installed and authenticated, Skriver tries to create the issue directly.
+Otherwise it prints a prefilled GitHub issue URL.
+
+Options:
   --json   Print machine-readable JSON instead of text
   --help   Show this help
 `;
@@ -491,6 +552,10 @@ Notes and glossary:
 Review rule:
   Do not merge OCR into the transcript automatically.
   Use notes, screenshots, OCR, context, and diarization as evidence to improve the final transcript carefully.
+
+Feedback:
+  Send product feedback to the maintainer with:
+  skriver feedback "What was confusing, slow, or missing?"
 `;
 }
 
@@ -657,6 +722,18 @@ export async function buildGlossaryConfig(options) {
   }
 
   return config;
+}
+
+export async function buildFeedbackConfig(options) {
+  if ((options.action === "add" || options.action === "url") && !options.message?.trim()) {
+    throw new Error("feedback requires a message. Example: skriver feedback \"The second-pass flow should be clearer.\"");
+  }
+
+  return {
+    action: options.action || "add",
+    message: options.message?.trim() || "",
+    json: Boolean(options.json)
+  };
 }
 
 async function resolveGlossaryPaths(userConfig, glossaryOption) {

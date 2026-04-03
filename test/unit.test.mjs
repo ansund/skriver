@@ -66,6 +66,7 @@ test("renderHelp includes the agent onboarding help", () => {
   assert.match(help, /skills\/skriver\/SKILL\.md/);
   assert.match(help, /CLAUDE\.md/);
   assert.match(help, /--notes-file/);
+  assert.match(help, /skriver feedback/);
 });
 
 test("renderHelp includes the review second-pass command", () => {
@@ -73,6 +74,19 @@ test("renderHelp includes the review second-pass command", () => {
 
   assert.match(help, /skriver review/);
   assert.match(help, /meeting-skriver\/README\.md/);
+  assert.match(help, /skriver feedback/);
+});
+
+test("parseArgs reads feedback add and url forms", () => {
+  const add = parseArgs(["feedback", "The", "progress", "felt", "dead"]);
+  const url = parseArgs(["feedback", "url", "The", "progress", "--json"]);
+
+  assert.equal(add.command, "feedback");
+  assert.equal(add.options.action, "add");
+  assert.equal(add.options.message, "The progress felt dead");
+  assert.equal(url.options.action, "url");
+  assert.equal(url.options.message, "The progress");
+  assert.equal(url.options.json, true);
 });
 
 test("parseArgs reads verbose flags for transcribe and setup", () => {

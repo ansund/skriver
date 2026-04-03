@@ -1,0 +1,21 @@
+name: Agent feedback
+description: Share workflow feedback from using Skriver as an agent or maintainer
+title: "[Agent feedback] "
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What was confusing, slow, missing, or especially good?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Include the command, run folder shape, or workflow step if relevant
+  - type: textarea
+    id: better
+    attributes:
+      label: Better outcome
+      description: What should the next agent or human experience instead?

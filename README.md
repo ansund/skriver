@@ -17,6 +17,7 @@ The intended happy path is:
 2. open `meeting-skriver/README.md`
 3. read `meeting-skriver/meeting-transcript.md`
 4. run `skriver review /absolute/path/to/meeting-skriver`
+5. leave feedback with `skriver feedback "What was confusing, slow, or missing?"`
 
 This repo now contains both:
 
@@ -176,6 +177,7 @@ The review workflow lives here:
 - `skriver <file>`: create a first-pass transcript plus evidence for review
 - `skriver transcribe --input <file>`: explicit form of the same operation
 - `skriver review <run-dir-or-run.json>`: guided second-pass review of the evidence bundle
+- `skriver feedback "..."`: send product feedback to the maintainer through GitHub
 - `--notes-file <file.md|file.txt>`: add human notes to the evidence bundle, with `.md` recommended
 - `--glossary <file.txt>`: layer a project glossary on top of the default glossary for the current run
 - `skriver setup`: prepare and verify diarization

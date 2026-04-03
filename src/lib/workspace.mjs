@@ -315,7 +315,11 @@ function renderRunReadme(runState) {
     "- Notes are higher-trust clarification than OCR.",
     "- Do not merge OCR into the transcript automatically.",
     "- Use screenshots, OCR, context, and diarization as evidence to improve the final transcript carefully.",
-    "- Keep the final transcript honest about uncertainty when the evidence is weak."
+    "- Keep the final transcript honest about uncertainty when the evidence is weak.",
+    "",
+    "## Feedback",
+    "",
+    "- Leave product feedback with `skriver feedback \"What was confusing, slow, or missing?\"`"
   );
 
   return lines.join("\n");

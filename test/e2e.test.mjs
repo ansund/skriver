@@ -488,6 +488,105 @@ test("review alias summarizes the second-pass workflow", async () => {
   assert.match(review.stdout, /Next steps:/);
 });
 
+test("feedback command submits through gh when authenticated", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-feedback-"));
+  const shimsDir = path.join(tempRoot, "shims");
+  await mkdir(shimsDir, { recursive: true });
+  await writeShim(
+    shimsDir,
+    "gh-ok",
+    `
+const args = process.argv.slice(2);
+if (args[0] === "auth" && args[1] === "status") {
+  process.stdout.write("logged in\\n");
+  process.exit(0);
+}
+if (args[0] === "issue" && args[1] === "create") {
+  process.stdout.write("https://github.com/ansund/skriver/issues/123\\n");
+  process.exit(0);
+}
+process.exit(1);
+`
+  );
+
+  const add = await runCliArgs([
+    "feedback",
+    "The",
+    "run",
+    "README",
+    "was",
+    "very",
+    "helpful"
+  ], {
+    env: {
+      ...process.env,
+      SKRIVER_GH_COMMAND: shimCommandPath(shimsDir, "gh-ok")
+    }
+  });
+
+  assert.match(add.stdout, /submitted to GitHub/);
+  assert.match(add.stdout, /issues\/123/);
+});
+
+test("feedback url prints a prefilled GitHub issue link", async () => {
+  const url = await runCliArgs([
+    "feedback",
+    "url",
+    "The",
+    "run",
+    "README",
+    "was",
+    "very",
+    "helpful",
+    "--json"
+  ], {
+    env: {
+      ...process.env
+    }
+  });
+
+  const parsed = JSON.parse(url.stdout.trim());
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.submitted, false);
+  assert.match(parsed.url, /github\.com\/ansund\/skriver\/issues\/new/);
+  assert.match(parsed.url, /agent_feedback\.yml/);
+  assert.match(parsed.url, /The\+run\+README\+was\+very\+helpful/);
+});
+
+test("non-json transcribe prints workflow and feedback hints", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-run-text-"));
+  const shimsDir = path.join(tempRoot, "shims");
+  const outputRoot = path.join(tempRoot, "out");
+  const inputPath = path.join(tempRoot, "meeting.m4a");
+  const notesPath = path.join(tempRoot, "notes.md");
+
+  await writeCommonShims(shimsDir);
+  await writeFile(inputPath, "placeholder audio");
+  await writeFile(notesPath, "A short note");
+
+  const result = await runCliArgs([
+    inputPath,
+    "--screenshots",
+    "off",
+    "--notes-file",
+    notesPath,
+    "--output-root",
+    outputRoot
+  ], {
+    env: {
+      ...buildToolEnv(shimsDir)
+    }
+  });
+
+  assert.match(result.stderr, /Skriver workflow/);
+  assert.match(result.stderr, /open first when done:/);
+  assert.match(result.stderr, /second pass when done: skriver review/);
+  assert.match(result.stderr, /Leave feedback with: skriver feedback/);
+  assert.match(result.stdout, /Open first:/);
+  assert.match(result.stdout, /Next step: skriver review/);
+  assert.match(result.stdout, /Leave feedback: skriver feedback/);
+});
+
 test("setup marks diarization ready and file-first invocation uses it by default", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-setup-"));
   const shimsDir = path.join(tempRoot, "shims");

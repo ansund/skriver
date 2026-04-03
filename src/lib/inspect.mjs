@@ -47,7 +47,10 @@ export async function runInspectCommand(config) {
       `Diarization: ${result.diarizationStatus}`,
       "",
       "Next steps:",
-      ...result.nextSteps.map((step, index) => `${index + 1}. ${step}`)
+      ...result.nextSteps.map((step, index) => `${index + 1}. ${step}`),
+      "",
+      "Feedback:",
+      "Leave product feedback with: skriver feedback \"What was confusing, slow, or missing?\""
     ].join("\n")
   };
 }
