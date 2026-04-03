@@ -101,7 +101,6 @@ function buildFeedbackPayload(message) {
     "",
     "## Context",
     `- Tool version: ${TOOL_VERSION}`,
-    `- Working directory: ${process.cwd()}`,
     `- Timestamp: ${new Date().toISOString()}`,
     "",
     "## What should improve?",
