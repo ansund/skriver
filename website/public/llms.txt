@@ -1,6 +1,6 @@
 # Skriver
 
-Skriver is an AI meeting note taker, meeting transcript tool, transcriber, and evidence-review skill for agents.
+Skriver is an AI meeting note taker, meeting transcript tool, transcriber, and agent skill for meeting audio and video.
 
 ## Core idea
 
@@ -19,6 +19,7 @@ The skill teaches the agent how to read that folder, gather the right evidence, 
 - Notes are higher-trust clarification than OCR.
 - Add notes with `--notes-file ./notes.md` so they become part of the evidence bundle.
 - The agent’s second pass is where the best meeting notes and final summary are made.
+- The workflow is written in plain markdown so it can work across Codex, Claude Code, and other agents that read repo instructions.
 
 ## The tool
 
@@ -52,12 +53,14 @@ What the key files mean:
 
 ## The skill
 
-This repo also ships a checked-in skill for agents:
+This repo ships checked-in skills for agents:
 
+- `skills/skriver/SKILL.md`
 - `skills/skriver-evidence-review/SKILL.md`
 
-That skill teaches:
+Those skills teach:
 
+- how to run the tool well
 - the review order
 - how to weigh notes against OCR
 - how to use screenshots and diarization as evidence
@@ -70,6 +73,12 @@ Why that matters:
 - the transcript is conservative enough to trust
 - the evidence bundle gives the agent receipts
 - the skill teaches the review method, not just the command
+
+How this works across agents:
+
+- Codex can use `AGENTS.md` plus the checked-in `SKILL.md` files
+- Claude Code can use `CLAUDE.md` and the repo skills in `.claude/skills/`
+- other agents can follow `AGENTS.md` because the workflow is kept in plain markdown
 
 ## Install
 
@@ -85,14 +94,22 @@ Windows PowerShell:
 
 `irm https://skriver.ansund.com/install.ps1 | iex`
 
-## Use
+Skill install:
 
-Check the machine:
+There is no separate package install for the repo skill.
+Install the CLI globally, then open the repo and use the checked-in markdown workflow files.
+
+Verify the tool:
 
 ```bash
+skriver --version
+skriver --help
+skriver help agents
 skriver doctor
 skriver setup
 ```
+
+## Use
 
 Run on a file:
 
@@ -104,6 +121,7 @@ Recommended:
 
 - put your human meeting notes in a `.md` file
 - attach them as evidence with `--notes-file`
+- load the agent workflow with `skriver help agents`
 
 Optional glossary:
 
@@ -124,6 +142,16 @@ Skriver can also load glossary files automatically from:
 
 - `~/.skriver/config.json`
 
+## Canonical agent docs
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `.claude/skills/skriver/SKILL.md`
+- `.claude/skills/skriver-evidence-review/SKILL.md`
+- `skills/skriver/SKILL.md`
+- `skills/skriver-evidence-review/SKILL.md`
+- `docs/workflows/review-a-run.md`
+
 ## Recommended agent workflow
 
 1. Run `skriver file.mp4` or `skriver file.m4a`
@@ -135,7 +163,7 @@ Skriver can also load glossary files automatically from:
 7. Review `evidence/context/context_artifacts.json`
 8. Review `evidence/diarization/speaker_diarization.json` if present
 9. Review `evidence/video-ocr/screen_ocr.tsv`, `evidence/video-ocr/screen_notes.json`, and `evidence/video-screenshots/` for video
-10. Use the checked-in skill in `skills/skriver-evidence-review/SKILL.md` to augment the transcript and produce the best final summary
+10. Use the checked-in skills to augment the transcript and produce the best final summary
 
 ## Important rules
 

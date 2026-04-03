@@ -273,12 +273,16 @@ test("dry-run e2e builds transcript, manifest, and summary placeholder", async (
   assert.equal(parsed.ok, true);
   assert.equal(parsed.diarizationStatus, "skipped");
   assert.ok(parsed.runState.endsWith("run.json"));
+  assert.ok(parsed.readme.endsWith("README.md"));
   assert.ok(parsed.transcript.endsWith("-transcript.md"));
 
   const transcript = await readFile(parsed.transcript, "utf8");
+  const readme = await readFile(parsed.readme, "utf8");
   const summaryDraft = JSON.parse(await readFile(path.join(parsed.evidenceDirectory, "whisper", "summary_draft.json"), "utf8"));
   const runState = JSON.parse(await readFile(parsed.runState, "utf8"));
 
+  assert.match(readme, /# Skriver Run/);
+  assert.match(readme, /skriver review/);
   assert.match(transcript, /Auto-generated draft is unavailable in dry-run mode\./);
   assert.deepEqual(summaryDraft.overview, ["Auto-generated draft is unavailable in dry-run mode."]);
   assert.equal(runState.summary.diarizationStatus, "skipped");
@@ -341,13 +345,20 @@ test("mocked full e2e run merges transcript, manifest, context, screens, glossar
   assert.equal(parsed.diarizationStatus, "completed");
   assert.equal(parsed.diarizedSpeakers, 2);
   assert.equal(parsed.screenshotStatus, "completed");
+  assert.ok(parsed.nextStepCommand.includes("skriver review"));
 
   const runDir = parsed.runDirectory;
   const transcript = await readFile(parsed.transcript, "utf8");
+  const readme = await readFile(parsed.readme, "utf8");
   const runState = JSON.parse(await readFile(parsed.runState, "utf8"));
   const summaryDraft = JSON.parse(await readFile(runState.artifacts.summaryDraft, "utf8"));
   const diarization = JSON.parse(await readFile(runState.artifacts.diarization, "utf8"));
 
+  assert.match(readme, /# Skriver Run/);
+  assert.match(readme, /## Happy Path/);
+  assert.match(readme, /Open First/);
+  assert.match(readme, /meeting-transcript\.md/);
+  assert.match(readme, /skriver review/);
   assert.match(transcript, /## Summary/);
   assert.match(transcript, /## Key Insights/);
   assert.match(transcript, /## Actions \/ TODOs/);
@@ -438,8 +449,43 @@ test("inspect command summarizes a completed run", async () => {
 
   assert.equal(parsed.ok, true);
   assert.equal(parsed.runDirectory, runDir);
+  assert.ok(parsed.readme.endsWith("README.md"));
   assert.ok(parsed.suggestedArtifacts.some((item) => item.endsWith("summary_draft.json")));
   assert.ok(parsed.nextSteps.some((step) => step.includes("Read")));
+});
+
+test("review alias summarizes the second-pass workflow", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "skriver-review-"));
+  const shimsDir = path.join(tempRoot, "shims");
+  const outputRoot = path.join(tempRoot, "out");
+  const inputPath = path.join(tempRoot, "meeting.m4a");
+
+  await writeCommonShims(shimsDir);
+  await writeFile(inputPath, "placeholder audio");
+
+  const transcribe = await runCliArgs([
+    inputPath,
+    "--screenshots",
+    "off",
+    "--output-root",
+    outputRoot,
+    "--json"
+  ], {
+    env: {
+      ...buildToolEnv(shimsDir)
+    }
+  });
+
+  const runDir = JSON.parse(transcribe.stdout.trim()).runDirectory;
+  const review = await runCliArgs(["review", runDir], {
+    env: {
+      ...buildToolEnv(shimsDir)
+    }
+  });
+
+  assert.match(review.stdout, /Open first:/);
+  assert.match(review.stdout, /README\.md/);
+  assert.match(review.stdout, /Next steps:/);
 });
 
 test("setup marks diarization ready and file-first invocation uses it by default", async () => {

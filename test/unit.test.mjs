@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { renderHelp } from "../src/lib/args.mjs";
 import { __test__ } from "../src/cli.mjs";
 import { buildTranscribeConfig } from "../src/lib/args.mjs";
 import { __test__ as setupTest } from "../src/lib/setup.mjs";
@@ -56,6 +57,22 @@ test("parseArgs treats a file path as shorthand for transcribe input", () => {
 test("parseArgs reads root version flags", () => {
   assert.equal(parseArgs(["--version"]).version, true);
   assert.equal(parseArgs(["-v"]).version, true);
+});
+
+test("renderHelp includes the agent onboarding help", () => {
+  const help = renderHelp("agents");
+
+  assert.match(help, /Install the tool/);
+  assert.match(help, /skills\/skriver\/SKILL\.md/);
+  assert.match(help, /CLAUDE\.md/);
+  assert.match(help, /--notes-file/);
+});
+
+test("renderHelp includes the review second-pass command", () => {
+  const help = renderHelp("transcribe");
+
+  assert.match(help, /skriver review/);
+  assert.match(help, /meeting-skriver\/README\.md/);
 });
 
 test("parseArgs reads verbose flags for transcribe and setup", () => {

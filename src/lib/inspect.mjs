@@ -8,6 +8,7 @@ export async function runInspectCommand(config) {
     ok: true,
     runDirectory: config.runDirectory,
     runState: config.runStatePath,
+    readme: runState.output?.readme,
     transcript: runState.output?.mainTranscript,
     evidenceDirectory: runState.output?.evidence,
     diarizationStatus: runState.diarization?.status || stages.diarization?.status || "unknown",
@@ -17,6 +18,7 @@ export async function runInspectCommand(config) {
     screenNotes: runState.summary?.screenNoteCount || 0,
     stageStatuses: Object.fromEntries(Object.entries(stages).map(([name, value]) => [name, value.status])),
     suggestedArtifacts: [
+      runState.output?.readme,
       runState.output?.mainTranscript,
       runState.artifacts?.summaryDraft,
       runState.artifacts?.lowConfidenceSegments,
@@ -36,6 +38,7 @@ export async function runInspectCommand(config) {
     text: [
       `Inspecting: ${config.runDirectory}`,
       "",
+      `Open first: ${result.readme}`,
       `Transcript: ${result.transcript}`,
       `Run state: ${result.runState}`,
       `Evidence: ${result.evidenceDirectory}`,
@@ -51,7 +54,8 @@ export async function runInspectCommand(config) {
 
 function buildInspectSteps(runState) {
   const steps = [];
-  steps.push(`Read ${runState.output?.mainTranscript} first.`);
+  steps.push(`Read ${runState.output?.readme} first.`);
+  steps.push(`Then read ${runState.output?.mainTranscript}.`);
 
   if (runState.summary?.lowConfidenceCount > 0) {
     steps.push(`Review ${runState.artifacts?.lowConfidenceSegments} for uncertain segments.`);

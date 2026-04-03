@@ -70,7 +70,8 @@ async function main() {
         process.stdout.write(parsed.options.json ? `${JSON.stringify(result, null, 2)}\n` : `${result.text}\n`);
         return;
       }
-      case "inspect": {
+      case "inspect":
+      case "review": {
         const config = await buildInspectConfig(parsed.options);
         const result = await runInspectCommand(config);
         process.stdout.write(config.json ? `${JSON.stringify(result, null, 2)}\n` : `${result.text}\n`);
@@ -96,12 +97,16 @@ function renderTranscribeResultText(result) {
   const lines = [];
   lines.push("Skriver run complete.");
   lines.push("");
-  lines.push(`Transcript: ${result.transcript}`);
+  lines.push(`Output dir: ${result.runDirectory}`);
+  lines.push(`Open first: ${result.readme}`);
+  lines.push(`Main transcript: ${result.transcript}`);
   lines.push(`Run state: ${result.runState}`);
   lines.push(`Evidence: ${result.evidenceDirectory}`);
   lines.push(`Transcript stage: ${result.transcriptStatus}`);
   lines.push(`Screenshot stage: ${result.screenshotStatus}`);
   lines.push(`Diarization: ${result.diarizationStatus}`);
+  lines.push("");
+  lines.push(`Next step: ${result.nextStepCommand}`);
   return lines.join("\n");
 }
 

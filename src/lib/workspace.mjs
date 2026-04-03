@@ -21,6 +21,7 @@ export async function createRunWorkspace(config) {
   const sourceDir = join(evidenceDir, "source");
   const transcriptFileName = `${inputBaseName}-transcript.md`;
   const transcriptPath = join(runDir, transcriptFileName);
+  const reviewReadmePath = join(runDir, "README.md");
   const runStatePath = join(runDir, "run.json");
   const managedDirs = [
     audioDir,
@@ -54,6 +55,7 @@ export async function createRunWorkspace(config) {
     sourceDir,
     transcriptPath,
     transcriptFileName,
+    reviewReadmePath,
     runStatePath,
     sourceCopyPath: join(sourceDir, basename(config.inputPath)),
     audioPath: join(audioDir, "audio_16k.wav"),
@@ -184,6 +186,7 @@ export async function writeStageLog(run, stageName, lines) {
 
 export async function writeRunState(run) {
   await writeFile(run.runStatePath, `${JSON.stringify(serializeRunState(run), null, 2)}\n`, "utf8");
+  await writeFile(run.reviewReadmePath, `${renderRunReadme(serializeRunState(run))}\n`, "utf8");
 }
 
 function ensureStage(run, stageName) {
@@ -208,10 +211,12 @@ function serializeRunState(run) {
       sourcePath: run.metadata.inputPath,
       media: run.metadata.media || null,
       language: run.metadata.language,
-      whisperModel: run.metadata.whisperModel
+      whisperModel: run.metadata.whisperModel,
+      notesFile: run.metadata.notesFile
     },
     output: {
       root: run.runDir,
+      readme: run.reviewReadmePath,
       mainTranscript: run.transcriptPath,
       evidence: run.evidenceDir
     },
@@ -228,6 +233,7 @@ function serializeRunState(run) {
     summary: run.metadata.summary,
     artifacts: {
       transcript: run.transcriptPath,
+      readme: run.reviewReadmePath,
       notesText: run.notesTextPath,
       notesJson: run.notesJsonPath,
       contextArtifacts: run.contextArtifactsPath,
@@ -248,4 +254,69 @@ function serializeRunState(run) {
       logs: run.logPaths
     }
   };
+}
+
+function renderRunReadme(runState) {
+  const runDir = runState.output?.root;
+  const transcript = runState.output?.mainTranscript;
+  const readme = runState.output?.readme;
+  const evidence = runState.output?.evidence;
+  const summaryDraft = runState.artifacts?.summaryDraft;
+  const lowConfidence = runState.artifacts?.lowConfidenceSegments;
+  const notes = runState.artifacts?.notesJson;
+  const contextArtifacts = runState.artifacts?.contextArtifacts;
+  const screenshots = runState.artifacts?.screenshots;
+  const screenOcr = runState.artifacts?.screenOcr;
+  const diarization = runState.artifacts?.diarization;
+  const hasScreenNotes = (runState.summary?.screenNoteCount || 0) > 0;
+  const hasContext = (runState.summary?.contextFileCount || 0) > 0 || Boolean(runState.input?.notesFile);
+  const diarizationCompleted = (runState.diarization?.status || runState.stages?.diarization?.status) === "completed";
+
+  const lines = [
+    "# Skriver Run",
+    "",
+    "Skriver created a first-pass transcript plus an evidence bundle.",
+    "The best final transcript usually comes from a second pass through the evidence.",
+    "",
+    "## Happy Path",
+    "",
+    `1. Read \`${readme}\``,
+    `2. Read \`${transcript}\``,
+    `3. Run \`skriver review "${runDir}"\` for the guided second-pass checklist`,
+    "4. Produce the final cleaned transcript, summary, and action items using the evidence carefully",
+    "",
+    "## Open First",
+    "",
+    `- Main transcript: \`${transcript}\``,
+    `- Run state: \`${runState.output?.root ? `${runState.output.root}/run.json` : ""}\``,
+    `- Evidence root: \`${evidence}\``,
+    "",
+    "## Review Order",
+    "",
+    `1. \`${transcript}\``,
+    `2. \`${summaryDraft}\``,
+    `3. \`${lowConfidence}\``
+  ];
+
+  if (hasContext) {
+    lines.push(`4. \`${notes}\` and \`${contextArtifacts}\``);
+  }
+  if (hasScreenNotes) {
+    lines.push(`5. \`${screenOcr}\` and \`${screenshots}\``);
+  }
+  if (diarizationCompleted) {
+    lines.push(`6. \`${diarization}\``);
+  }
+
+  lines.push(
+    "",
+    "## Important Rules",
+    "",
+    "- Notes are higher-trust clarification than OCR.",
+    "- Do not merge OCR into the transcript automatically.",
+    "- Use screenshots, OCR, context, and diarization as evidence to improve the final transcript carefully.",
+    "- Keep the final transcript honest about uncertainty when the evidence is weak."
+  );
+
+  return lines.join("\n");
 }

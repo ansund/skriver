@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skriver"
+  short_description: "Transcribe meetings and turn the evidence bundle into final notes"
+  default_prompt: "Use Skriver to create or review a meeting transcript, attach notes and glossary context when helpful, inspect the evidence bundle carefully, and produce the best final transcript and summary grounded in the available evidence."

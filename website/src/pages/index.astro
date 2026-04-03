@@ -8,9 +8,9 @@ const installPsUrl = `${siteUrl}/install.ps1`;
 ---
 
 <BaseLayout
-  title="Skriver | AI Meeting Note Taker, Meeting Transcript Tool, And Agent Skill"
+  title="Skriver | AI Meeting Note Taker, Meeting Transcript Tool, Transcriber, And Agent Skill"
   pageTitle="Skriver"
-  description="Skriver is an AI meeting note taker and meeting transcript tool for agents. It transcribes audio and video, creates evidence-rich meeting notes, and teaches the agent how to turn that bundle into the best final transcript and summary."
+  description="Skriver is an AI meeting note taker, meeting transcript tool, and transcriber for agents. It transcribes audio and video, creates evidence-rich meeting notes, and teaches the agent how to turn that bundle into the best final transcript and summary."
 >
   <main id="content" class="page-shell">
     <header class="site-header">
@@ -38,6 +38,7 @@ const installPsUrl = `${siteUrl}/install.ps1`;
           <li>Capture the extra evidence a serious AI note taker should have: notes, screenshots, OCR, context, and diarization.</li>
           <li>Notes are higher-trust clarification than OCR.</li>
           <li>Add notes with <code>--notes-file ./notes.md</code> so they become part of the evidence bundle.</li>
+          <li>Works with Codex, Claude Code, and other agents that can read markdown repo instructions.</li>
           <li>The agent’s second pass is where the best meeting notes and final summary are made.</li>
         </ul>
       </div>
@@ -104,8 +105,10 @@ const installPsUrl = `${siteUrl}/install.ps1`;
         </div>
         <p>
           This repo also ships a checked-in skill for agents:
+          <code>skills/skriver/SKILL.md</code>.
+          The repo also includes a focused review skill at
           <code>skills/skriver-evidence-review/SKILL.md</code>.
-          That skill teaches the review order, how to weigh notes against OCR, how to use screenshots
+          Together they teach the review order, how to weigh notes against OCR, how to use screenshots
           and diarization as evidence, and how to create the best final transcript, meeting notes,
           and summary.
         </p>
@@ -117,8 +120,8 @@ const installPsUrl = `${siteUrl}/install.ps1`;
           <p>The best output does not come from the first transcript alone. It comes from the agent working the evidence folder carefully and turning it into better meeting notes.</p>
         </article>
         <article class="feature-card">
-          <h3>What it teaches</h3>
-          <p>Read `run.json`, inspect low-confidence segments, trust notes, use screenshots carefully, and never merge OCR blindly into a meeting transcript.</p>
+          <h3>How to load it</h3>
+          <p>Codex can use the checked-in skill. Claude Code can use <code>CLAUDE.md</code> plus the repo skill in <code>.claude/skills/</code>. Other agents can follow <code>AGENTS.md</code>.</p>
         </article>
         <article class="feature-card">
           <h3>What you get</h3>
@@ -149,6 +152,11 @@ const installPsUrl = `${siteUrl}/install.ps1`;
           <h3>Windows</h3>
           <pre class="terminal-body"><code>{`irm ${installPsUrl} | iex`}</code></pre>
         </article>
+        <article class="feature-card">
+          <h3>Load the workflow</h3>
+          <pre class="terminal-body"><code>{`skriver help agents`}</code></pre>
+          <p>That prints the install path, usage path, and where the skill/workflow lives for Codex, Claude Code, and generic agents. The CLI is installed globally. The skill is checked into this repo and loaded from markdown.</p>
+        </article>
       </div>
     </section>
 
@@ -178,6 +186,13 @@ skriver setup`}</code></pre>
   --notes-file ./notes.md \\
   --glossary ./team-glossary.txt`}</code></pre>
           <p>A glossary helps a meeting transcriber handle abbreviations, product names, and English terms inside Swedish or other languages more reliably.</p>
+        </article>
+        <article class="feature-card">
+          <h3>4. Load the skill</h3>
+          <pre class="terminal-body"><code>{`Codex: use skills/skriver/SKILL.md
+Claude Code: use .claude/skills/skriver/SKILL.md
+Other agents: read AGENTS.md`}</code></pre>
+          <p>The workflow is plain markdown on purpose, so it can travel across agent runtimes instead of being trapped inside one vendor feature.</p>
         </article>
       </div>
     </section>

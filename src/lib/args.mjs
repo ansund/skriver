@@ -35,6 +35,8 @@ export function parseArgs(argv) {
       return parseDoctorArgs(command, rest);
     case "inspect":
       return parseInspectArgs(command, rest);
+    case "review":
+      return parseInspectArgs(command, rest);
     case "glossary":
       return parseGlossaryArgs(command, rest);
     default:
@@ -257,20 +259,26 @@ function parseGlossaryArgs(command, argv) {
   return { help: false, command, options };
 }
 
-export function printHelp(command = null) {
-  const render = command === "transcribe"
+export function renderHelp(command = null) {
+  return command === "transcribe"
     ? renderTranscribeHelp()
     : command === "setup"
       ? renderSetupHelp()
-    : command === "doctor"
-      ? renderDoctorHelp()
-      : command === "inspect"
-        ? renderInspectHelp()
-        : command === "glossary"
-          ? renderGlossaryHelp()
-          : renderRootHelp();
+      : command === "doctor"
+        ? renderDoctorHelp()
+        : command === "inspect"
+          ? renderInspectHelp()
+          : command === "review"
+            ? renderReviewHelp()
+          : command === "glossary"
+            ? renderGlossaryHelp()
+            : command === "agents"
+              ? renderAgentsHelp()
+              : renderRootHelp();
+}
 
-  process.stdout.write(render);
+export function printHelp(command = null) {
+  process.stdout.write(renderHelp(command));
 }
 
 function renderRootHelp() {
@@ -285,7 +293,16 @@ Commands:
   setup        Prepare and verify diarization so it can run by default
   doctor       Check local dependencies and optional diarization setup
   inspect      Review a run directory and print the next evidence-review steps
+  review       Friendly alias for inspect, designed for the second pass
   glossary     List glossary entries or check text against glossary rules
+
+Quick start:
+  skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md
+  open /absolute/path/to/meeting-skriver/README.md
+  skriver review /absolute/path/to/meeting-skriver
+
+Agent docs:
+  skriver help agents
 
 Run \`skriver help <command>\` for command-specific help.
 `;
@@ -300,6 +317,12 @@ Usage:
 Skriver writes a conservative first-pass transcript and an evidence bundle.
 The final clarified transcript usually comes from a human or agent reviewing that evidence.
 Add human notes as evidence with --notes-file ./notes.md.
+
+Quickstart:
+  1. skriver meeting.mp4 --notes-file ./notes.md
+  2. open meeting-skriver/README.md
+  3. read meeting-skriver/meeting-transcript.md
+  4. run skriver review /absolute/path/to/meeting-skriver
 
 Options:
   --input PATH                Absolute or relative path to audio/video file
@@ -325,6 +348,8 @@ Options:
 Examples:
   skriver meeting.mp4 --notes-file ./notes.md
   skriver meeting.mp4 --notes-file ./notes.md --glossary ./team-glossary.txt
+  skriver review /absolute/path/to/meeting-skriver
+  skriver help agents
 `;
 }
 
@@ -369,6 +394,22 @@ Options:
 `;
 }
 
+function renderReviewHelp() {
+  return `${TOOL_NAME} review
+
+Usage:
+  skriver review /absolute/path/to/run-dir-or-run.json [--json]
+
+Review is the second-pass command.
+It reads run.json, points you to the right evidence files, and tells the agent what to open first.
+
+Options:
+  --verbose  Stream detailed command output
+  --json   Print machine-readable JSON instead of text
+  --help   Show this help
+`;
+}
+
 function renderGlossaryHelp() {
   return `${TOOL_NAME} glossary
 
@@ -386,6 +427,70 @@ Options:
   --verbose         Stream detailed command output
   --json            Print machine-readable JSON instead of text
   --help            Show this help
+`;
+}
+
+function renderAgentsHelp() {
+  return `${TOOL_NAME} help agents
+
+Skriver is both:
+  1. a transcription tool for audio and video
+  2. a review skill/workflow for turning the evidence bundle into the best final transcript and summary
+
+Install the tool:
+  curl -fsSL https://skriver.ansund.com/install.sh | bash
+  npm install -g github:ansund/skriver
+
+Install the skill:
+  There is no separate package install for the repo skill.
+  Open the repo in an agent runtime and use the checked-in markdown files below.
+
+Verify the tool:
+  skriver --version
+  skriver doctor
+  skriver setup
+
+Use the tool:
+  skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md
+  skriver /absolute/path/to/meeting.m4a --notes-file ./notes.md --glossary ./team-glossary.txt
+
+Important output:
+  <filename>-skriver/
+    <filename>-transcript.md
+    run.json
+    evidence/
+
+Core rule:
+  The main transcript is a conservative first pass.
+  The best final transcript and summary come from reviewing run.json and the evidence folder carefully.
+
+Where the skill/workflow lives in this repo:
+  AGENTS.md                              Canonical repo-level workflow
+  CLAUDE.md                              Claude Code entrypoint
+  skills/skriver/SKILL.md                End-to-end Skriver skill
+  skills/skriver-evidence-review/SKILL.md Review-phase skill
+  .claude/skills/skriver/SKILL.md        Claude Code skill adapter
+  docs/workflows/review-a-run.md         Short review checklist
+
+How to use it in agent runtimes:
+  Codex:
+    Open the repo and follow AGENTS.md. If repo skills are supported, use skills/skriver/SKILL.md.
+
+  Claude Code:
+    Open the repo so CLAUDE.md is loaded. Then use the repo skill in .claude/skills/skriver/SKILL.md or follow CLAUDE.md and AGENTS.md.
+
+  Other agents:
+    Read AGENTS.md and this help text. The workflow is written in plain markdown so it can be reused without vendor-specific skill support.
+
+Notes and glossary:
+  --notes-file accepts only .md or .txt, with .md recommended
+  Notes are higher-trust clarification than OCR
+  --glossary helps with abbreviations, product names, and English terms inside another language
+  You can also set default glossary paths in ~/.skriver/config.json
+
+Review rule:
+  Do not merge OCR into the transcript automatically.
+  Use notes, screenshots, OCR, context, and diarization as evidence to improve the final transcript carefully.
 `;
 }
 

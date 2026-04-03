@@ -11,10 +11,24 @@ skriver meeting.m4a
 
 It writes a sibling folder beside the source file, produces a first-pass transcript quickly, and then adds evidence that helps a human or agent turn that into the final clarified transcript.
 
+The intended happy path is:
+
+1. `skriver meeting.mp4 --notes-file ./notes.md`
+2. open `meeting-skriver/README.md`
+3. read `meeting-skriver/meeting-transcript.md`
+4. run `skriver review /absolute/path/to/meeting-skriver`
+
 This repo now contains both:
 
 - the tool that creates the evidence bundle
 - the skill that teaches an agent how to use that bundle well
+
+The recommended cross-agent shape is:
+
+- `AGENTS.md` is the canonical repo workflow
+- `skills/skriver/SKILL.md` is the end-to-end Skriver skill
+- `skills/skriver-evidence-review/SKILL.md` is the focused review skill
+- `CLAUDE.md` and `.claude/skills/` adapt the same workflow for Claude Code
 
 Notes are file-based:
 
@@ -57,7 +71,11 @@ Skriver is intentionally split into two layers:
 1. `skriver` creates the first-pass transcript and evidence bundle.
 2. A human or agent reviews the evidence and improves the transcript where needed.
 
-The checked-in agent skill lives here:
+The checked-in end-to-end agent skill lives here:
+
+- [skills/skriver/SKILL.md](./skills/skriver/SKILL.md)
+
+The focused review skill lives here:
 
 - [skills/skriver-evidence-review/SKILL.md](./skills/skriver-evidence-review/SKILL.md)
 
@@ -93,6 +111,15 @@ Optional but recommended:
 
 Detailed setup lives in [docs/install.md](./docs/install.md).
 
+Agent install/use docs:
+
+- `skriver help agents`
+- [AGENTS.md](./AGENTS.md)
+- [CLAUDE.md](./CLAUDE.md)
+
+There is no separate package install for the Skriver repo skill.
+Install the CLI globally, then open this repo in the agent runtime and use the checked-in workflow files.
+
 ## Setup
 
 Run:
@@ -113,6 +140,7 @@ For `meeting.mp4`, Skriver writes:
 
 ```text
 meeting-skriver/
+  README.md
   meeting-transcript.md
   run.json
   evidence/
@@ -129,6 +157,10 @@ The main transcript is:
 
 - `meeting-skriver/meeting-transcript.md`
 
+Open first:
+
+- `meeting-skriver/README.md`
+
 The machine-readable state file is:
 
 - `meeting-skriver/run.json`
@@ -143,12 +175,14 @@ The review workflow lives here:
 
 - `skriver <file>`: create a first-pass transcript plus evidence for review
 - `skriver transcribe --input <file>`: explicit form of the same operation
+- `skriver review <run-dir-or-run.json>`: guided second-pass review of the evidence bundle
 - `--notes-file <file.md|file.txt>`: add human notes to the evidence bundle, with `.md` recommended
 - `--glossary <file.txt>`: layer a project glossary on top of the default glossary for the current run
 - `skriver setup`: prepare and verify diarization
 - `skriver doctor`: check local dependencies and setup state
 - `skriver inspect <run-dir-or-run.json>`: inspect a completed run and print the next evidence-review steps
 - `skriver glossary`: inspect or apply glossary corrections
+- `skriver help agents`: print the cross-agent install/use/skill workflow
 
 ## Development
 
@@ -168,10 +202,12 @@ Current automated coverage includes:
 ## Docs
 
 - [AGENTS.md](./AGENTS.md)
+- [CLAUDE.md](./CLAUDE.md)
 - [docs/install.md](./docs/install.md)
 - [docs/architecture.md](./docs/architecture.md)
 - [docs/glossary.md](./docs/glossary.md)
 - [docs/workflows/review-a-run.md](./docs/workflows/review-a-run.md)
+- [skills/skriver/SKILL.md](./skills/skriver/SKILL.md)
 - [skills/skriver-evidence-review/SKILL.md](./skills/skriver-evidence-review/SKILL.md)
 
 ## License

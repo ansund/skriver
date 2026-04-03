@@ -33,6 +33,7 @@ Then verify:
 ```bash
 skriver --version
 skriver --help
+skriver help agents
 ```
 
 ## From source
@@ -63,3 +64,12 @@ skriver doctor
 skriver setup
 skriver /absolute/path/to/meeting.mp4 --notes-file ./notes.md
 ```
+
+## Agent workflow docs
+
+Use these files to teach an agent how to use Skriver:
+
+- `AGENTS.md` for the canonical repo workflow
+- `skills/skriver/SKILL.md` for the end-to-end Skriver skill
+- `skills/skriver-evidence-review/SKILL.md` for the review-phase skill
+- `CLAUDE.md` and `.claude/skills/` for Claude Code

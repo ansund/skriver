@@ -60,8 +60,12 @@ export async function runTranscribeCommand(config, reporter = null) {
   await markStageStarted(run, "transcript", "Extracting audio and running Whisper.");
 
   try {
+    reporter?.step("Preparing the output folder and evidence bundle");
+    reporter?.step("Extracting audio from the source file");
     await extractAudio(config, run);
+    reporter?.step("Running Whisper on the extracted audio");
     await transcribeAudio(config, run);
+    reporter?.step("Writing the first-pass transcript and transcript evidence");
     const transcriptData = await buildTranscriptArtifacts(config, run);
     await markStageCompleted(run, "transcript", "Main transcript created.");
     await updateRunSummary(run, transcriptData.summary);
@@ -86,8 +90,11 @@ export async function runTranscribeCommand(config, reporter = null) {
     reporter?.startStage("Stage 2/3", "Creating screenshots and OCR");
     await markStageStarted(run, "screenshots", "Extracting screenshots and OCR text.");
     try {
+      reporter?.step("Extracting screenshots from the video");
       await extractScreenshots(config, run, media.durationSeconds);
+      reporter?.step("Running OCR on the screenshots");
       await runVideoOcr(config, run);
+      reporter?.step("Writing screenshot evidence into the run folder");
       const transcriptData = await buildTranscriptArtifacts(config, run);
       await markStageCompleted(run, "screenshots", "Screenshots and OCR are ready.");
       await updateRunSummary(run, transcriptData.summary);
@@ -134,7 +141,9 @@ export async function runTranscribeCommand(config, reporter = null) {
     reporter?.startStage("Stage 3/3", "Running diarization", "This may take a while");
     await markStageStarted(run, "diarization", "Attempting speaker diarization.");
     try {
+      reporter?.step("Running the diarization backend");
       await runSpeakerDiarization(config, run);
+      reporter?.step("Writing diarization evidence into the run folder");
       const transcriptData = await buildTranscriptArtifacts(config, run);
       const diarizationStatus = run.metadata.diarization?.status || "skipped";
       if (diarizationStatus === "completed") {
@@ -187,9 +196,11 @@ function buildResult(run, summary) {
   return {
     ok: true,
     runDirectory: run.runDir,
+    readme: run.reviewReadmePath,
     transcript: run.transcriptPath,
     runState: run.runStatePath,
     evidenceDirectory: run.evidenceDir,
+    nextStepCommand: `skriver review "${run.runDir}"`,
     mediaHasVideo: run.metadata.media?.hasVideo || false,
     contextFiles: run.metadata.contextArtifacts?.length || 0,
     diarizationStatus: summary?.diarizationStatus || run.metadata.diarization?.status || "unknown",

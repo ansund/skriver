@@ -8,7 +8,11 @@ The important product idea is:
 - `skriver` also creates an evidence bundle
 - the reviewing agent has an important job in turning that into the final clarified transcript
 
-When the task is to review a completed Skriver run or improve a final transcript from Skriver artifacts, use:
+When the task is end-to-end transcription plus review, use:
+
+- `skills/skriver/SKILL.md`
+
+When the task is specifically to review a completed Skriver run or improve a final transcript from Skriver artifacts, use:
 
 - `skills/skriver-evidence-review/SKILL.md`
 
@@ -21,7 +25,9 @@ When the task is to review a completed Skriver run or improve a final transcript
 5. Use `--diarization on` only when the local pyannote environment is ready. If the participant count is known, also pass `--num-speakers N`.
 6. Keep screenshots enabled for videos unless the user explicitly says not to.
 7. Lower `--screenshot-interval` from `20` to `10` for UI-heavy demos or fast screen changes.
-8. After the run, read `run.json` first, then the main transcript, then the supporting evidence artifacts.
+8. After the run, open `README.md` in the run folder first.
+9. Then read `run.json`, the main transcript, and the supporting evidence artifacts in that order.
+10. Prefer `skriver review <run-dir>` for the second-pass checklist when handing the run to another agent.
 
 ## Command
 
@@ -39,6 +45,7 @@ skriver "/absolute/path/to/file.mp4" \
 
 - Each run creates a sibling `<filename>-skriver/` folder beside the source media.
 - `run.json` is the main machine-readable index for the run.
+- `skriver help agents` prints the install path, usage path, and cross-agent workflow docs.
 - The transcript should preserve the spoken language. Do not translate unless the user explicitly asks for translation.
 - The primary deliverable is `<filename>-transcript.md`.
 - `summary_draft.json` is a helper artifact for agents, not a substitute for reasoning.

@@ -9,12 +9,14 @@ export function createProgressReporter({ enabled = true, verbose = false, stream
 
   let spinnerTimer = null;
   let stage = null;
+  let stageDetail = "";
   let stageStartedAt = 0;
   let frame = 0;
 
   function startStage(name, detail = "", estimate = null) {
     stopSpinner();
     stage = name;
+    stageDetail = detail;
     stageStartedAt = Date.now();
     frame = 0;
     const estimateText = estimate ? ` Estimated time: ${estimate}.` : "";
@@ -24,11 +26,31 @@ export function createProgressReporter({ enabled = true, verbose = false, stream
       return;
     }
 
+    startSpinner();
+  }
+
+  function step(message) {
+    stopSpinner(true);
+    stream.write(`  - ${message}\n`);
+
+    if (!stream.isTTY || verbose || !stage) {
+      return;
+    }
+
+    startSpinner();
+  }
+
+  function startSpinner() {
+    if (!stage) {
+      return;
+    }
+
     spinnerTimer = setInterval(() => {
       const elapsed = formatElapsed(Date.now() - stageStartedAt);
       const prefix = SPINNER_FRAMES[frame % SPINNER_FRAMES.length];
       frame += 1;
-      stream.write(`\r${prefix} ${name}... ${elapsed}`);
+      const detailText = stageDetail ? ` (${stageDetail})` : "";
+      stream.write(`\r${prefix} ${stage}...${detailText} ${elapsed}`);
     }, 125);
   }
 
@@ -68,6 +90,7 @@ export function createProgressReporter({ enabled = true, verbose = false, stream
 
   return {
     startStage,
+    step,
     info,
     finishStage,
     failStage,
@@ -78,6 +101,7 @@ export function createProgressReporter({ enabled = true, verbose = false, stream
 function createNoopReporter() {
   return {
     startStage() {},
+    step() {},
     info() {},
     finishStage() {},
     failStage() {},
